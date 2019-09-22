@@ -20,6 +20,8 @@ data ConfigTypeT f
   | CTBool (ConfigTypeData f Bool)
   | CTString (ConfigTypeData f Void)
   | CTStringVec (ConfigTypeData f Void)
+  | CTRawStringFormats (ConfigTypeData f Void)
+  | CTIncludeCats (ConfigTypeData f Void)
   | CTEnum { variants :: [T.Text], enumValue :: ConfigTypeData f T.Text }
 
 type ConfigType = ConfigTypeT 'ParsedInfo
