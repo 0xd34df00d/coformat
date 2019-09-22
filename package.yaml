@@ -28,6 +28,9 @@ dependencies:
 - text
 - xml-conduit
 
+ghc-options:
+- -Wall
+
 library:
   source-dirs: src
 
