@@ -6,33 +6,33 @@ import qualified Data.Text as T
 import Data.Void
 import Numeric.Natural
 
-data ConfigItemType = ParsedInfo | SupportedInfo | Instance
+data Stage = Parsed | Supported | Value
 
-type family ConfigTypeData f ty where
-  ConfigTypeData 'ParsedInfo _ = ()
-  ConfigTypeData 'SupportedInfo Void = Void
-  ConfigTypeData 'SupportedInfo _ = ()
-  ConfigTypeData 'Instance ty = ty
+type family CTData f ty where
+  CTData 'Parsed _ = ()
+  CTData 'Supported Void = Void
+  CTData 'Supported _ = ()
+  CTData 'Value ty = ty
 
 data ConfigTypeT f
-  = CTInt (ConfigTypeData f Int)
-  | CTUnsigned (ConfigTypeData f Natural)
-  | CTBool (ConfigTypeData f Bool)
-  | CTString (ConfigTypeData f Void)
-  | CTStringVec (ConfigTypeData f Void)
-  | CTRawStringFormats (ConfigTypeData f Void)
-  | CTIncludeCats (ConfigTypeData f Void)
-  | CTEnum { variants :: [T.Text], enumValue :: ConfigTypeData f T.Text }
+  = CTInt (CTData f Int)
+  | CTUnsigned (CTData f Natural)
+  | CTBool (CTData f Bool)
+  | CTString (CTData f Void)
+  | CTStringVec (CTData f Void)
+  | CTRawStringFormats (CTData f Void)
+  | CTIncludeCats (CTData f Void)
+  | CTEnum { variants :: [T.Text], enumValue :: CTData f T.Text }
 
-type ConfigType = ConfigTypeT 'ParsedInfo
-type ConfigTypeSupported = ConfigTypeT 'ParsedInfo
-type ConfigValue = ConfigTypeT 'Instance
+type ConfigType = ConfigTypeT 'Parsed
+type ConfigTypeSupported = ConfigTypeT 'Supported
+type ConfigValue = ConfigTypeT 'Value
 
 data ConfigItemT f = ConfigItem
   { name :: T.Text
   , typ :: ConfigTypeT f
   }
 
-type ConfigItem = ConfigItemT 'ParsedInfo
-type ConfigItemSupported = ConfigItemT 'SupportedInfo
-type ConfigInstance = ConfigItemT 'Instance
+type ConfigItem = ConfigItemT 'Parsed
+type ConfigItemSupported = ConfigItemT 'Supported
+type ConfigInstance = ConfigItemT 'Value
