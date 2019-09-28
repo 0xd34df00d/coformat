@@ -24,15 +24,8 @@ data ConfigTypeT f
   | CTIncludeCats (CTData f Void)
   | CTEnum { variants :: [T.Text], enumValue :: CTData f T.Text }
 
-type ConfigType = ConfigTypeT 'Parsed
-type ConfigTypeSupported = ConfigTypeT 'Supported
-type ConfigValue = ConfigTypeT 'Value
-
 data ConfigItemT f = ConfigItem
   { name :: T.Text
   , typ :: ConfigTypeT f
   }
 
-type ConfigItem = ConfigItemT 'Parsed
-type ConfigItemSupported = ConfigItemT 'Supported
-type ConfigInstance = ConfigItemT 'Value

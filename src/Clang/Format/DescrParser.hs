@@ -1,4 +1,5 @@
 {-# LANGUAGE QuasiQuotes, ParallelListComp, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE DataKinds #-}
 
 module Clang.Format.DescrParser where
 
@@ -16,23 +17,23 @@ import Text.XML.Selector.Types
 
 import Clang.Format.Descr
 
-parseDescr :: LBS.ByteString -> Either String [ConfigItem]
+parseDescr :: LBS.ByteString -> Either String [ConfigItemT 'Parsed]
 parseDescr = parseCursor . fromDocument . parseLBS
 
-parseCursor :: Cursor -> Either String [ConfigItem]
+parseCursor :: Cursor -> Either String [ConfigItemT 'Parsed]
 parseCursor cur =
   mapM parseItem [ (header, body) | header <- [jq|dl.docutils > dt|] `queryT` cur
                                   | body   <- [jq|dl.docutils > dd|] `queryT` cur
                                   ]
 
-parseItem :: (Cursor, Cursor) -> Either String ConfigItem
+parseItem :: (Cursor, Cursor) -> Either String (ConfigItemT 'Parsed)
 parseItem (header, body) = do
   name <- header @>. [jq|strong|]
   typStr <- header @>. [jq|span.pre|]
   typ <- parseType typStr body
   pure ConfigItem { .. }
 
-parseType :: T.Text -> Cursor -> Either String ConfigType
+parseType :: T.Text -> Cursor -> Either String (ConfigTypeT 'Parsed)
 parseType typStr cur
   | Just typ <- lookup typStr variantless = pure typ
   | otherwise = do
