@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds, TypeFamilies #-}
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE Strict #-}
 
 module Clang.Format.Descr where
 
