@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds, TypeFamilies #-}
+{-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Clang.Format.Descr where
@@ -26,10 +27,18 @@ data ConfigTypeT f
   | CTIncludeCats (CTData f Void)
   | CTEnum { variants :: [T.Text], enumValue :: CTData f T.Text }
 
+deriving instance Show (ConfigTypeT 'Parsed)
+deriving instance Show (ConfigTypeT 'Supported)
+deriving instance Show (ConfigTypeT 'Value)
+
 data ConfigItemT f = ConfigItem
   { name :: T.Text
   , typ :: ConfigTypeT f
   }
+
+deriving instance Show (ConfigItemT 'Parsed)
+deriving instance Show (ConfigItemT 'Supported)
+deriving instance Show (ConfigItemT 'Value)
 
 filterParsedItems :: [ConfigItemT 'Parsed] -> [ConfigItemT 'Supported]
 filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterType typ
