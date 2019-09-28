@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds, TypeFamilies #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Clang.Format.Descr where
 
 import qualified Data.Text as T
+import Data.Maybe
 import Data.Void
 import Numeric.Natural
 
@@ -29,3 +31,15 @@ data ConfigItemT f = ConfigItem
   , typ :: ConfigTypeT f
   }
 
+filterParsedItems :: [ConfigItemT 'Parsed] -> [ConfigItemT 'Supported]
+filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterType typ
+  where
+    filterType typ = case typ of
+                          CTInt () -> Just $ CTInt ()
+                          CTUnsigned () -> Just $ CTUnsigned ()
+                          CTBool () -> Just $ CTBool ()
+                          CTString () -> Nothing
+                          CTStringVec () -> Nothing
+                          CTRawStringFormats () -> Nothing
+                          CTIncludeCats () -> Nothing
+                          CTEnum vars () -> Just $ CTEnum vars ()
