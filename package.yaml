@@ -22,11 +22,16 @@ description:         Please see the README on GitHub at <https://github.com/0xd3
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
+- can-i-haz
 - dom-selector
 - html-conduit
 - interpolate
 - text
+- mtl
+- scientific
+- unordered-containers
 - xml-conduit
+- yaml
 
 ghc-options:
 - -Wall
