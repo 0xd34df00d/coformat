@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds, GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -40,23 +40,21 @@ data YamlAnalysisError
 
 fillConfigItems :: (MonadError e m, CoHas YamlAnalysisError e)
                 => [ConfigItemT 'Supported] -> Value -> m [ConfigItemT 'WithDefault]
-fillConfigItems supported (Object fields) = mapM (fillConfigItem fields) supported
+fillConfigItems supported (Object fields) = mapM fillConfigItem supported
+  where
+    fillConfigItem ConfigItem { .. } = do
+      yamlVal <- case HM.lookup name fields of
+                      Just val -> pure val
+                      Nothing -> throwError $ inject $ ValueNotFound name
+      val <- case (typ, yamlVal) of
+                  (CTInt _, Number num)
+                      | Just int <- toBoundedInteger num -> pure $ CTInt int
+                  (CTUnsigned _, Number num)
+                      | Just int <- toBoundedInteger num :: Maybe Int
+                      , int >= 0 -> pure $ CTUnsigned $ fromIntegral int
+                  (CTBool _, Bool b) -> pure $ CTBool b
+                  (CTEnum vars _, String s)
+                      | s `elem` vars -> pure $ CTEnum vars s
+                  _ -> throwError $ inject $ IncompatibleValue typ yamlVal
+      pure ConfigItem { name = name, typ = val }
 fillConfigItems _ _ = throwError $ inject YamlNotAnObject
-
-fillConfigItem :: (MonadError e m, CoHas YamlAnalysisError e)
-               => Object -> ConfigItemT 'Supported -> m (ConfigItemT 'WithDefault)
-fillConfigItem obj ConfigItem { .. } = do
-  yamlVal <- case HM.lookup name obj of
-                  Just val -> pure val
-                  Nothing -> throwError $ inject $ ValueNotFound name
-  val <- case (typ, yamlVal) of
-              (CTInt _, Number num)
-                  | Just int <- toBoundedInteger num -> pure $ CTInt int
-              (CTUnsigned _, Number num)
-                  | Just int <- toBoundedInteger num :: Maybe Int
-                  , int >= 0 -> pure $ CTUnsigned $ fromIntegral int
-              (CTBool _, Bool b) -> pure $ CTBool b
-              (CTEnum vars _, String s)
-                  | s `elem` vars -> pure $ CTEnum vars s
-              _ -> throwError $ inject $ IncompatibleValue typ yamlVal
-  pure ConfigItem { name = name, typ = val }
