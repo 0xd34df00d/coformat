@@ -10,12 +10,13 @@ import Data.Maybe
 import Data.Void
 import Numeric.Natural
 
-data Stage = Parsed | Supported | Value
+data Stage = Parsed | Supported | WithDefault | Value
 
 type family CTData f ty where
   CTData 'Parsed _ = ()
   CTData 'Supported Void = Void
   CTData 'Supported _ = ()
+  CTData 'WithDefault ty = ty
   CTData 'Value ty = ty
 
 data ConfigTypeT f
@@ -30,6 +31,7 @@ data ConfigTypeT f
 
 deriving instance Show (ConfigTypeT 'Parsed)
 deriving instance Show (ConfigTypeT 'Supported)
+deriving instance Show (ConfigTypeT 'WithDefault)
 deriving instance Show (ConfigTypeT 'Value)
 
 data ConfigItemT f = ConfigItem
@@ -39,6 +41,7 @@ data ConfigItemT f = ConfigItem
 
 deriving instance Show (ConfigItemT 'Parsed)
 deriving instance Show (ConfigItemT 'Supported)
+deriving instance Show (ConfigItemT 'WithDefault)
 deriving instance Show (ConfigItemT 'Value)
 
 filterParsedItems :: [ConfigItemT 'Parsed] -> [ConfigItemT 'Supported]
