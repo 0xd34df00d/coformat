@@ -1,13 +1,14 @@
 {-# LANGUAGE QuasiQuotes, ParallelListComp, RecordWildCards, OverloadedStrings #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds, GADTs #-}
 
 module Clang.Format.DescrParser where
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Data.Char
 import Data.String.Interpolate
-import Control.Monad
+import Control.Monad.Extra
 import Text.HTML.DOM
 import Text.XML hiding(parseLBS)
 import Text.XML.Cursor
@@ -21,10 +22,21 @@ parseDescr :: LBS.ByteString -> Either String [ConfigItemT 'Parsed]
 parseDescr = parseCursor . fromDocument . parseLBS
 
 parseCursor :: Cursor -> Either String [ConfigItemT 'Parsed]
-parseCursor cur =
-  mapM parseItem [ (header, body) | header <- [jq|dl.docutils > dt|] `queryT` cur
-                                  | body   <- [jq|dl.docutils > dd|] `queryT` cur
-                                  ]
+parseCursor cur = do
+  items <- mapM parseItem [ (header, body) | header <- [jq|dl.docutils > dt|] `queryT` cur
+                                           | body   <- [jq|dl.docutils > dd|] `queryT` cur
+                                           ]
+  braceWrappingKludge items
+
+braceWrappingKludge :: [ConfigItemT 'Parsed] -> Either String [ConfigItemT 'Parsed]
+braceWrappingKludge = concatMapM f
+  where
+    f c@ConfigItem { .. } | name /= "BraceWrapping" = pure [c]
+    f ConfigItem { typ = CTEnum { .. } } = pure [ ConfigItem { name = "BraceWrapping." <> var, typ = CTBool () }
+                                                | var <- variants
+                                                , isUpper $ T.head var
+                                                ]
+    f _ = Left "Expected BraceWrapping to have (mis)type of CTEnum"
 
 parseItem :: (Cursor, Cursor) -> Either String (ConfigItemT 'Parsed)
 parseItem (header, body) = do
