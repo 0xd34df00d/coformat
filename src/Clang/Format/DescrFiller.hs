@@ -1,10 +1,11 @@
 {-# LANGUAGE DataKinds, GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Clang.Format.DescrFiller
 ( fillConfigItemsIO
+, FillError
 ) where
 
 import qualified Data.Text as T
@@ -12,6 +13,7 @@ import qualified Data.HashMap.Strict as HM
 import Control.Monad.Except
 import Control.Monad.Except.CoHas
 import Data.Bifunctor
+import Data.Either.Combinators
 import Data.Scientific
 import Data.Yaml
 import GHC.Generics
@@ -33,6 +35,7 @@ fillConfigItemsIO :: (MonadIO m, MonadError e m, CoHas ParseException e, CoHas Y
 fillConfigItemsIO supported path = liftIO (decodeFileEither path)
                                >>= liftEitherCoHas
                                >>= extractMap
+                               >>= braceWrappingKludge
                                >>= fillConfigItems supported
 
 data YamlAnalysisError
@@ -44,6 +47,19 @@ data YamlAnalysisError
 extractMap :: (MonadError e m, CoHas YamlAnalysisError e) => Value -> m Object
 extractMap (Object fields) = pure fields
 extractMap _ = throwError $ inject $ YamlNotAnObject "Top-level value is not an object"
+
+braceWrappingKludge :: (MonadError e m, CoHas YamlAnalysisError e) => Object -> m Object
+braceWrappingKludge fields = do
+  bwVal <- liftEitherCoHas $ maybeToRight (ValueNotFound bwField) $ HM.lookup bwField fields
+  bwValObj <- case bwVal of
+                   Object obj -> pure obj
+                   _ -> throwError $ inject $ YamlNotAnObject "Brace wrapping value is not an object"
+  let bwSubfields = HM.fromList [ (bwField <> "." <> key, val)
+                                | (key, val) <- HM.toList bwValObj
+                                ]
+  pure $ HM.delete bwField fields <> bwSubfields
+  where
+    bwField = "BraceWrapping"
 
 fillConfigItems :: (MonadError e m, CoHas YamlAnalysisError e)
                 => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'WithDefault]

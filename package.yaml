@@ -24,6 +24,7 @@ dependencies:
 - bytestring
 - can-i-haz
 - dom-selector
+- either
 - extra
 - html-conduit
 - interpolate
