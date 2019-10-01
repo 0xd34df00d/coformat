@@ -30,17 +30,24 @@ fillConfigItemsIO :: (MonadIO m, MonadError e m, CoHas ParseException e, CoHas Y
                   => [ConfigItemT 'Supported]
                   -> FilePath
                   -> m [ConfigItemT 'WithDefault]
-fillConfigItemsIO supported path = liftIO (decodeFileEither path) >>= liftEitherCoHas >>= fillConfigItems supported
+fillConfigItemsIO supported path = liftIO (decodeFileEither path)
+                               >>= liftEitherCoHas
+                               >>= extractMap
+                               >>= fillConfigItems supported
 
 data YamlAnalysisError
-  = YamlNotAnObject
+  = YamlNotAnObject String
   | ValueNotFound T.Text
   | IncompatibleValue (ConfigTypeT 'Supported) Value
   deriving (Show)
 
+extractMap :: (MonadError e m, CoHas YamlAnalysisError e) => Value -> m Object
+extractMap (Object fields) = pure fields
+extractMap _ = throwError $ inject $ YamlNotAnObject "Top-level value is not an object"
+
 fillConfigItems :: (MonadError e m, CoHas YamlAnalysisError e)
-                => [ConfigItemT 'Supported] -> Value -> m [ConfigItemT 'WithDefault]
-fillConfigItems supported (Object fields) = mapM fillConfigItem supported
+                => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'WithDefault]
+fillConfigItems supported fields = mapM fillConfigItem supported
   where
     fillConfigItem ConfigItem { .. } = do
       yamlVal <- case HM.lookup name fields of
@@ -57,4 +64,3 @@ fillConfigItems supported (Object fields) = mapM fillConfigItem supported
                       | s `elem` vars -> pure $ CTEnum vars s
                   _ -> throwError $ inject $ IncompatibleValue typ yamlVal
       pure ConfigItem { name = name, typ = val }
-fillConfigItems _ _ = throwError $ inject YamlNotAnObject
