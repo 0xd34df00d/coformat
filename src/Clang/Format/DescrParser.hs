@@ -1,7 +1,10 @@
 {-# LANGUAGE QuasiQuotes, ParallelListComp, RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE DataKinds, GADTs #-}
 
-module Clang.Format.DescrParser where
+module Clang.Format.DescrParser
+( parseFile
+, parseDescr
+) where
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Text as T
@@ -17,6 +20,9 @@ import Text.XML.Selector.TH
 import Text.XML.Selector.Types
 
 import Clang.Format.Descr
+
+parseFile :: FilePath -> IO (Either String [ConfigItemT 'Parsed])
+parseFile = fmap parseDescr . LBS.readFile
 
 parseDescr :: LBS.ByteString -> Either String [ConfigItemT 'Parsed]
 parseDescr = parseCursor . fromDocument . parseLBS
