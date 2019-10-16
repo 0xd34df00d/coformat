@@ -23,7 +23,7 @@ import Clang.Format.Descr
 data FillError
   = YamlParseError ParseException
   | YamlAnalysisError YamlAnalysisError
-  deriving (Generic, CoHas ParseException, CoHas YamlAnalysisError)
+  deriving (Show, Generic, CoHas ParseException, CoHas YamlAnalysisError)
 
 liftEitherCoHas :: (MonadError sum m, CoHas e sum) => Either e a -> m a
 liftEitherCoHas = liftEither . first inject
