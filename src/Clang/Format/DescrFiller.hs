@@ -41,7 +41,7 @@ fillConfigItemsIO supported path = liftIO (decodeFileEither path)
 data YamlAnalysisError
   = YamlNotAnObject String
   | ValueNotFound T.Text
-  | IncompatibleValue (ConfigTypeT 'Supported) Value
+  | IncompatibleValue T.Text (ConfigTypeT 'Supported) Value
   deriving (Show)
 
 extractMap :: (MonadError e m, CoHas YamlAnalysisError e) => Value -> m Object
@@ -78,5 +78,5 @@ fillConfigItems supported fields = mapM fillConfigItem supported
                   (CTBool _, Bool b) -> pure $ CTBool b
                   (CTEnum vars _, String s)
                       | s `elem` vars -> pure $ CTEnum vars s
-                  _ -> throwError $ inject $ IncompatibleValue typ yamlVal
+                  _ -> throwError $ inject $ IncompatibleValue name typ yamlVal
       pure ConfigItem { name = name, typ = val }
