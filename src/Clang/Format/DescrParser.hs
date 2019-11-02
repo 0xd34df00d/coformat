@@ -48,16 +48,16 @@ parseItem :: (Cursor, Cursor) -> Either String (ConfigItemT 'Parsed)
 parseItem (header, body) = do
   name <- header @>. [jq|strong|]
   typStr <- header @>. [jq|span.pre|]
-  typ <- parseType typStr body
+  typ <- parseType name typStr body
   pure ConfigItem { .. }
 
-parseType :: T.Text -> Cursor -> Either String (ConfigTypeT 'Parsed)
-parseType typStr cur
+parseType :: T.Text -> T.Text -> Cursor -> Either String (ConfigTypeT 'Parsed)
+parseType name typStr cur
   | Just typ <- lookup typStr variantless = pure typ
   | otherwise = do
       let allVars = TL.toStrict . innerText <$> [jq|li code.docutils > span.pre|] `queryT` cur
       let variants = filter (not . T.any (== '_')) allVars
-      when (null variants) $ Left [i|no variants found for `#{typStr}`|]
+      when (null variants) $ Left [i|no variants found for `#{typStr}` for `#{name}`|]
       pure CTEnum { enumValue = (), .. }
   where
     variantless = [ ("int", CTInt ())
