@@ -55,8 +55,14 @@ parseType :: T.Text -> T.Text -> Cursor -> Either String (ConfigTypeT 'Parsed)
 parseType name typStr cur
   | Just typ <- lookup typStr variantless = pure typ
   | otherwise = do
-      let allVars = TL.toStrict . innerText <$> [jq|li code.docutils > span.pre|] `queryT` cur
-      let variants = filter (not . T.any (== '_')) allVars
+      let allOpts = [jq|li > p.first|] `queryT` cur
+      let variants
+            | null allOpts = dropEnums $ TL.toStrict . innerText <$> [jq|li code.docutils > span.pre|] `queryT` cur
+            | otherwise = [ h
+                          | opt <- allOpts
+                          , let codeBlocks = TL.toStrict . innerText <$> [jq|span.pre|] `queryT` opt
+                          , let (h:_) = dropEnums codeBlocks
+                          ]
       when (null variants) $ Left [i|no variants found for `#{typStr}` for `#{name}`|]
       pure CTEnum { enumValue = (), .. }
   where
@@ -68,6 +74,7 @@ parseType name typStr cur
                   , ("std::vector<RawStringFormat>", CTRawStringFormats ())
                   , ("std::vector<IncludeCategory>", CTIncludeCats ())
                   ]
+    dropEnums = filter (not . T.any (== '_'))
 
 (@>) :: Cursor -> [JQSelector] -> Either String Cursor
 cur @> expr | (sub:_) <- queryT expr cur = pure sub
