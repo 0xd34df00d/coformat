@@ -48,7 +48,7 @@ doWork :: (MonadError String m, MonadIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   liftIO $ forConcurrently_ baseStyles $ \sty -> do
-    (ec, stdout, stderr) <- [sh|clang-format --style="{BasedOnStyle: #{sty}}" data/core.cpp|]
+    (ec, stdout, stderr) <- [sh|clang-format --style="{BasedOnStyle: #{sty}, TabWidth: 4, UseTab: Always}" data/core.cpp|]
     case ec of ExitSuccess -> pure ()
                ExitFailure n -> putStrLn [i|clang-format failed with exit code #{n}:\n#{stderr}|]
     source <- readFile "data/core.cpp"
@@ -56,7 +56,6 @@ doWork = do
 
   filledOptions <- convert (show @FillError) $ fillConfigItemsIO varyingOptions "sample.yaml"
   liftIO $ mapM_ print filledOptions
-  pure ()
 
 testYaml :: IO ()
 testYaml = do
