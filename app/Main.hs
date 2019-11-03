@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleContexts, TypeApplications #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Main where
 
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 import Control.Monad.Except
 import Data.Bifunctor
 import Data.List
@@ -23,18 +24,27 @@ convert :: (MonadError String m, MonadIO m, Show e)
         -> m a
 convert cvt act = runExceptT act >>= (liftEither . first cvt)
 
-doWork :: (MonadError String m, MonadIO m) => m ()
-doWork = do
-  parseResult <- liftIO $ parseFile "data/ClangFormatStyleOptions-9.html"
+parseOptsDescription :: (MonadError String m, MonadIO m) => FilePath -> m ([T.Text], [ConfigItemT 'Supported])
+parseOptsDescription path = do
+  parseResult <- liftIO $ parseFile path
   supportedOptions <- filterParsedItems <$> liftEither' "Unable to parse the file: " parseResult
   baseStyles <- case find ((== bosKey) . name) supportedOptions of
                      Nothing -> throwError "No `BasedOnStyle` option"
                      Just stys -> pure stys
   let varyingOptions = filter ((/= bosKey) . name) supportedOptions
-  filledOptions <- convert (show @FillError) $ fillConfigItemsIO varyingOptions "sample.yaml"
-  pure ()
+  case typ baseStyles of
+       CTEnum { .. } -> pure (variants, varyingOptions)
+       _ -> throwError $ "Unknown type for the `BaseStyles` option: " <> show (typ baseStyles)
   where
     bosKey = "BasedOnStyle"
+
+doWork :: (MonadError String m, MonadIO m) => m ()
+doWork = do
+  (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
+  liftIO $ print baseStyles
+  filledOptions <- convert (show @FillError) $ fillConfigItemsIO varyingOptions "sample.yaml"
+  liftIO $ mapM_ print filledOptions
+  pure ()
 
 testYaml :: IO ()
 testYaml = do
