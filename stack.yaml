@@ -3,4 +3,5 @@ packages:
 - .
 extra-deps:
 - can-i-haz-0.3.0.0
+- command-qq-0.3.0.0
 - dom-selector-0.2.0.1

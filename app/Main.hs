@@ -1,15 +1,21 @@
 {-# LANGUAGE FlexibleContexts, TypeApplications #-}
 {-# LANGUAGE DataKinds, RankNTypes #-}
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, QuasiQuotes #-}
 
 module Main where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import Control.Monad
 import Control.Monad.Except
 import Data.Bifunctor
 import Data.List
+import Data.String.Interpolate
 import Data.Yaml
+import System.Command.QQ
+import System.Exit
+import Text.EditDistance
 
 import Clang.Format.Descr
 import Clang.Format.DescrParser
@@ -41,7 +47,13 @@ parseOptsDescription path = do
 doWork :: (MonadError String m, MonadIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
-  liftIO $ print baseStyles
+  forM_ baseStyles $ \sty -> do
+    (ec, stdout, stderr) <- liftIO [sh|clang-format --style=#{sty} data/core.cpp|]
+    case ec of ExitSuccess -> pure ()
+               ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
+    source <- liftIO $ readFile "data/core.cpp"
+    liftIO $ putStrLn [i|#{sty}: #{levenshteinDistance defaultEditCosts source $ TL.unpack stdout}|]
+
   filledOptions <- convert (show @FillError) $ fillConfigItemsIO varyingOptions "sample.yaml"
   liftIO $ mapM_ print filledOptions
   pure ()

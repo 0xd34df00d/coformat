@@ -19,7 +19,9 @@ dependencies:
 - base >= 4.7 && < 5
 - bytestring
 - can-i-haz
+- command-qq
 - dom-selector
+- edit-distance
 - either
 - extra
 - html-conduit
