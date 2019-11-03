@@ -26,7 +26,7 @@ data FillError
 fillConfigItemsIO :: (MonadIO m, MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
                   => [ConfigItemT 'Supported]
                   -> FilePath
-                  -> m [ConfigItemT 'WithDefault]
+                  -> m [ConfigItemT 'Value]
 fillConfigItemsIO supported path = liftIO (decodeFileEither path)
                                >>= liftEither
                                >>= extractMap
@@ -57,7 +57,7 @@ braceWrappingKludge fields = do
     bwField = "BraceWrapping"
 
 fillConfigItems :: (MonadError e m, CoHas YamlAnalysisError e)
-                => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'WithDefault]
+                => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'Value]
 fillConfigItems supported fields = mapM fillConfigItem supported
   where
     fillConfigItem ConfigItem { .. } = do
