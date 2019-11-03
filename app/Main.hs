@@ -10,9 +10,9 @@ import Data.Bifunctor
 import Data.List
 import Data.Yaml
 
-import Clang.Format.DescrParser
-import Clang.Format.DescrFiller
 import Clang.Format.Descr
+import Clang.Format.DescrParser
+import Clang.Format.YamlParser
 
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)
