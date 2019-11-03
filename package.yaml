@@ -27,6 +27,7 @@ dependencies:
 - text
 - mtl
 - scientific
+- temporary
 - unordered-containers
 - xml-conduit
 - yaml
