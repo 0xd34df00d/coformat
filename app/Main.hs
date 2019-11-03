@@ -40,7 +40,7 @@ parseOptsDescription path = do
   let varyingOptions = filter ((/= bosKey) . name) supportedOptions
   case typ baseStyles of
        CTEnum { .. } -> pure (variants, varyingOptions)
-       _ -> throwError $ "Unknown type for the `BaseStyles` option: " <> show (typ baseStyles)
+       _ -> throwError [i|Unknown type for the `BaseStyles` option: #{typ baseStyles}|]
   where
     bosKey = "BasedOnStyle"
 
