@@ -55,7 +55,7 @@ braceWrappingKludge fields = do
     bwField = "BraceWrapping"
 
 fillConfigItemsFromObj :: (MonadError e m, CoHas YamlAnalysisError e)
-                => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'Value]
+                       => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'Value]
 fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
   where
     fillConfigItem ConfigItem { .. } = do
