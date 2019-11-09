@@ -45,12 +45,15 @@ parseOptsDescription path = do
   where
     bosKey = "BasedOnStyle"
 
+checkExit :: MonadError String m => String -> ExitCode -> TL.Text -> m ()
+checkExit _ ExitSuccess _ = pure ()
+checkExit program (ExitFailure n) stderr = throwError [i|#{program} failed with exit code #{n}:\n#{stderr}|]
+
 chooseBaseStyle :: (MonadError String m, MonadIO m) => [T.Text] -> [String] -> m T.Text
 chooseBaseStyle baseStyles files = do
   estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> runExceptT $ do
     (ec, stdout, stderr) <- liftIO [sh|clang-format --style="{BasedOnStyle: #{sty}, TabWidth: 4, UseTab: Always}" #{file}|]
-    case ec of ExitSuccess -> pure ()
-               ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
+    checkExit "clang-format" ec stderr
     source <- liftIO $ readFile file
     let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
     liftIO $ putStrLn [i|Initial guess for #{sty} at #{file}: #{dist}|]
