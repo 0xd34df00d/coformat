@@ -47,15 +47,16 @@ parseOptsDescription path = do
   where
     bosKey = "BasedOnStyle"
 
-checkExit :: MonadError String m => String -> ExitCode -> TL.Text -> m ()
-checkExit _ ExitSuccess _ = pure ()
-checkExit program (ExitFailure n) stderr = throwError [i|#{program} failed with exit code #{n}:\n#{stderr}|]
+checked :: (MonadError String m, MonadIO m) => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
+checked act = do
+  (ec, stdout, stderr) <- liftIO act
+  case ec of ExitSuccess -> pure stdout
+             ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
 
 chooseBaseStyle :: (MonadError String m, MonadIO m) => [T.Text] -> [String] -> m T.Text
 chooseBaseStyle baseStyles files = do
   estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> runExceptT $ do
-    (ec, stdout, stderr) <- liftIO [sh|clang-format --style="{BasedOnStyle: #{sty}, TabWidth: 4, UseTab: Always}" #{file}|]
-    checkExit "clang-format" ec stderr
+    stdout <- checked [sh|clang-format --style="{BasedOnStyle: #{sty}, TabWidth: 4, UseTab: Always}" #{file}|]
     source <- liftIO $ readFile file
     let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
     liftIO $ putStrLn [i|Initial guess for #{sty} at #{file}: #{dist}|]
@@ -70,7 +71,7 @@ doWork :: (MonadError String m, MonadIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   baseStyle <- chooseBaseStyle baseStyles ["data/core.cpp", "data/core.h"]
-  (ec, stdout, stderr) <- liftIO [sh|clang-format --style=#{baseStyle} --dump-config|]
+  stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   liftIO $ mapM_ print filledOptions
 
