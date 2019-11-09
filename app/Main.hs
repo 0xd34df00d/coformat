@@ -4,9 +4,11 @@
 
 module Main where
 
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
 import Control.Concurrent.Async
 import Control.Monad.Except
 import Data.Bifunctor
@@ -68,7 +70,8 @@ doWork :: (MonadError String m, MonadIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   baseStyle <- chooseBaseStyle baseStyles ["data/core.cpp", "data/core.h"]
-  filledOptions <- convert (show @FillError) $ fillConfigItemsIO varyingOptions "sample.yaml"
+  (ec, stdout, stderr) <- liftIO [sh|clang-format --style=#{baseStyle} --dump-config|]
+  filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   liftIO $ mapM_ print filledOptions
 
 testYaml :: IO ()

@@ -4,10 +4,11 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Clang.Format.YamlParser
-( fillConfigItemsIO
+( fillConfigItems
 , FillError
 ) where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Except.CoHas
@@ -23,15 +24,12 @@ data FillError
   | YamlAnalysisError YamlAnalysisError
   deriving (Show, Generic, CoHas ParseException, CoHas YamlAnalysisError)
 
-fillConfigItemsIO :: (MonadIO m, MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
-                  => [ConfigItemT 'Supported]
-                  -> FilePath
-                  -> m [ConfigItemT 'Value]
-fillConfigItemsIO supported path = liftIO (decodeFileEither path)
-                               >>= liftEither
-                               >>= extractMap
-                               >>= braceWrappingKludge
-                               >>= fillConfigItems supported
+fillConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
+                => [ConfigItemT 'Supported] -> BS.ByteString -> m [ConfigItemT 'Value]
+fillConfigItems supported yamlContents = liftEither (decodeEither' yamlContents)
+                                     >>= extractMap
+                                     >>= braceWrappingKludge
+                                     >>= fillConfigItemsFromObj supported
 
 data YamlAnalysisError
   = YamlNotAnObject String
@@ -56,9 +54,9 @@ braceWrappingKludge fields = do
   where
     bwField = "BraceWrapping"
 
-fillConfigItems :: (MonadError e m, CoHas YamlAnalysisError e)
+fillConfigItemsFromObj :: (MonadError e m, CoHas YamlAnalysisError e)
                 => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'Value]
-fillConfigItems supported fields = mapM fillConfigItem supported
+fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
   where
     fillConfigItem ConfigItem { .. } = do
       yamlVal <- case HM.lookup name fields of
