@@ -11,10 +11,11 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 import Control.Concurrent.Async
 import Control.Monad.Except
+import Control.Monad.Logger
 import Data.Bifunctor
 import Data.List
 import Data.Ord
-import Data.String.Interpolate
+import Data.String.Interpolate.IsString
 import Data.Yaml
 import System.Command.QQ
 import System.Exit
@@ -53,21 +54,21 @@ checked act = do
   case ec of ExitSuccess -> pure stdout
              ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
 
-chooseBaseStyle :: (MonadError String m, MonadIO m) => [T.Text] -> [String] -> m T.Text
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
 chooseBaseStyle baseStyles files = do
-  estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> runExceptT $ do
+  logger <- askLoggerIO
+  estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> flip runLoggingT logger $ runExceptT $ do
     stdout <- checked [sh|clang-format --style="{BasedOnStyle: #{sty}, TabWidth: 4, UseTab: Always}" #{file}|]
     source <- liftIO $ readFile file
     let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
-    liftIO $ putStrLn [i|Initial guess for #{sty} at #{file}: #{dist}|]
+    logDebugN [i|Initial guess for #{sty} at #{file}: #{dist}|]
     pure (sty, dist)
   sty2dists <- liftEither $ sequence estimates
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
-  liftIO $ putStrLn "==="
-  liftIO $ forM_ accumulated $ \(sty, acc) -> putStrLn [i|Initial accumulated guess for #{sty}: #{acc}|]
+  forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ fst $ minimumBy (comparing snd) accumulated
 
-doWork :: (MonadError String m, MonadIO m) => m ()
+doWork :: (MonadError String m, MonadLoggerIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   baseStyle <- chooseBaseStyle baseStyles ["data/core.cpp", "data/core.h"]
@@ -82,7 +83,7 @@ testYaml = do
 
 main :: IO ()
 main = do
-  res <- runExceptT doWork
+  res <- runStderrLoggingT $ runExceptT doWork
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"

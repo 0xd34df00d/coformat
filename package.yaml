@@ -28,6 +28,7 @@ dependencies:
 - html-conduit
 - interpolate
 - text
+- monad-logger
 - mtl
 - scientific
 - temporary
