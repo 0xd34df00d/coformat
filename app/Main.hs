@@ -4,8 +4,11 @@
 
 module Main where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
+import qualified Data.ByteString.Search as BSS
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Sequence as S
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
@@ -13,9 +16,12 @@ import Control.Concurrent.Async
 import Control.Monad.Except
 import Control.Monad.Logger
 import Data.Bifunctor
+import Data.Char
+import Data.Foldable
 import Data.List
 import Data.Maybe
 import Data.Ord
+import Data.Sequence(Seq(..))
 import Data.String.Interpolate.IsString
 import Data.Void
 import Data.Yaml
@@ -91,6 +97,33 @@ data Options = Options
   { userFocedOpts :: UserForcedOpts
   , inputFiles :: [String]
   } deriving (Eq, Show)
+
+internalize :: Seq Char -> (Seq Char, HM.HashMap BS.ByteString Char)
+internalize = merge . foldl' f (mempty, (mempty, mempty))
+  where
+    merge (acc, (output, st)) = (output <> acc, st)
+    f (acc, (output, st)) ch
+      | isAlpha ch = (acc :|> ch, (output, st))
+      | S.length acc < 2 = (mempty, (output <> acc :|> ch, st))
+      | Just interned <- HM.lookup tokenBS st = (mempty, (output :|> interned :|> ch, st))
+      | otherwise = let interned = chr $ 127 + HM.size st
+                        st' = HM.insert tokenBS interned st
+                    in (mempty, (output :|> interned :|> ch, st'))
+      where
+        tokenBS = BS.pack $ toList acc
+
+internalize' :: HM.HashMap BS.ByteString Char -> BS.ByteString -> BS.ByteString
+internalize' table str = foldl' f str tableList
+  where
+    tableList = sortBy (flip $ comparing $ BS.length . fst) $ HM.toList table
+    f acc (token, rep) = BSL.toStrict $ BSS.replace token (BS.singleton rep) acc
+
+fastLD :: String -> BS.ByteString -> Int
+fastLD s1 s2 = levenshteinDistance defaultEditCosts s1' $ BS.unpack s2'
+  where
+    (dumb, internTable) = first toList $ internalize $ S.fromList s1
+    s1' = BS.unpack $ internalize' internTable $ BS.pack s1
+    s2' = internalize' internTable s2
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => UserForcedOpts -> [T.Text] -> [String] -> m T.Text
 chooseBaseStyle ufos baseStyles files = do
