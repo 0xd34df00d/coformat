@@ -21,6 +21,7 @@ dependencies:
 - bytestring
 - can-i-haz
 - command-qq
+- containers
 - dom-selector
 - edit-distance
 - either
