@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts, TypeApplications #-}
-{-# LANGUAGE DataKinds, RankNTypes #-}
+{-# LANGUAGE DataKinds, RankNTypes, GADTs #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards, QuasiQuotes #-}
 
 module Main where
@@ -17,6 +17,7 @@ import Data.List
 import Data.Maybe
 import Data.Ord
 import Data.String.Interpolate.IsString
+import Data.Void
 import Data.Yaml
 import System.Command.QQ
 import System.Exit
@@ -55,29 +56,42 @@ checked act = do
   case ec of ExitSuccess -> pure stdout
              ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
 
-class StyParams a where
-  formatStyArg :: a -> T.Text
-
 data UserForcedOpts = UserForcedOpts
   { tabWidth :: Maybe Int
   , useTab :: Maybe Bool
   } deriving (Eq, Show)
 
-data InitialOpts = InitialOpts
-  { basedOnStyle :: T.Text
-  , ufos :: UserForcedOpts
-  } deriving (Eq, Show)
+toConfigItems :: UserForcedOpts -> [ConfigItemT 'Value]
+toConfigItems UserForcedOpts { .. } =
+  catMaybes [ unpackInt "TabWidth" tabWidth
+            , unpackEnum "UseTab" $ (\b -> if b then "Always" else "Never") <$> useTab
+            ]
+  where
+    unpackInt _ Nothing = Nothing
+    unpackInt label (Just val) = Just ConfigItem { name = label, typ = CTInt val }
+    unpackEnum _ Nothing = Nothing
+    unpackEnum label (Just val) = Just ConfigItem { name = label, typ = CTEnum [val] val }
 
-instance StyParams InitialOpts where
-  formatStyArg InitialOpts { .. } = "{ " <> T.intercalate ", " (opts ufos) <> " }"
-    where
-      opts UserForcedOpts { .. } = [i|BasedOnStyle: #{basedOnStyle}|]
-                                 : catMaybes [ f "TabWidth" tabWidth
-                                             , f "UseTab" $ (\b -> if b then "Always" else "Never" :: String) <$> useTab
-                                             ]
-      f :: Show a => String -> Maybe a -> Maybe T.Text
-      f _ Nothing = Nothing
-      f label (Just val) = Just [i|#{label}: #{val}|]
+data StyOpts = StyOpts
+  { basedOnStyle :: T.Text
+  , overriddenOpts :: [ConfigItemT 'Value]
+  }
+
+formatStyArg :: StyOpts -> T.Text
+formatStyArg StyOpts { .. } = "{ " <> T.intercalate ", " opts <> " }"
+  where
+    opts = [i|BasedOnStyle: #{basedOnStyle}|]
+         : [ [i|#{name}: #{fmtTyp typ}|]
+           | ConfigItem { .. } <- overriddenOpts
+           ]
+    fmtTyp (CTInt n) = show n
+    fmtTyp (CTUnsigned n) = show n
+    fmtTyp (CTString v) = absurd v
+    fmtTyp (CTStringVec v) = absurd v
+    fmtTyp (CTRawStringFormats v) = absurd v
+    fmtTyp (CTIncludeCats v) = absurd v
+    fmtTyp (CTBool b) = if b then "true" else "false"
+    fmtTyp (CTEnum _ opt) = T.unpack opt
 
 data Options = Options
   { userFocedOpts :: UserForcedOpts
@@ -88,7 +102,7 @@ chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => UserForcedOpts -> [
 chooseBaseStyle ufos baseStyles files = do
   logger <- askLoggerIO
   estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> flip runLoggingT logger $ runExceptT $ do
-    let formattedSty = formatStyArg InitialOpts { basedOnStyle = sty, ufos = ufos }
+    let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = toConfigItems ufos }
     stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
     source <- liftIO $ readFile file
     let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
