@@ -6,7 +6,6 @@ module Main where
 
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Sequence as S
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
@@ -14,16 +13,14 @@ import Control.Concurrent.Async
 import Control.Monad.Except
 import Control.Monad.Logger
 import Data.Bifunctor
-import Data.Char
 import Data.Foldable
 import Data.Maybe
 import Data.Ord
-import Data.Sequence(Seq(..))
 import Data.String.Interpolate.IsString
 import Data.Void
 import System.Command.QQ
-import Text.EditDistance
 
+import qualified Text.Levenshteins as LD
 import Clang.Coformat.Util
 import Clang.Format.Descr
 import Clang.Format.DescrParser
@@ -94,19 +91,6 @@ data Options = Options
   , inputFiles :: [String]
   } deriving (Eq, Show)
 
-blindTokens :: String -> String
-blindTokens = toList . finalize . foldl' f (False, mempty) . S.fromList
-  where
-    finalize (False, out) = out
-    finalize (True, out) = out :|> '$'
-    f (hadToken, out) ch
-      | isAlpha ch = (True, out)
-      | hadToken = (False, out :|> '$' :|> ch)
-      | otherwise = (False, out :|> ch)
-
-fastLD :: String -> String -> Int
-fastLD s1 s2 = levenshteinDistance defaultEditCosts (blindTokens s1) (blindTokens s2)
-
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => UserForcedOpts -> [T.Text] -> [String] -> m T.Text
 chooseBaseStyle ufos baseStyles files = do
   logger <- askLoggerIO
@@ -114,7 +98,7 @@ chooseBaseStyle ufos baseStyles files = do
     let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = toConfigItems ufos }
     stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
     source <- liftIO $ readFile file
-    let dist = fastLD source $ TL.unpack stdout
+    let dist = LD.blinding source $ TL.unpack stdout
     logDebugN [i|Initial guess for #{sty} at #{file}: #{dist}|]
     pure (sty, dist)
   sty2dists <- liftEither $ sequence estimates
