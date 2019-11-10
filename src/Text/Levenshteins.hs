@@ -1,5 +1,7 @@
 module Text.Levenshteins
 ( blindTokens
+, dropStartSpaces
+
 , levenshteinDistanceWith
 ) where
 
@@ -18,6 +20,9 @@ blindTokens = toList . finalize . foldl' f (False, mempty) . S.fromList
       | isAlpha ch = (True, out)
       | hadToken = (False, out :|> '$' :|> ch)
       | otherwise = (False, out :|> ch)
+
+dropStartSpaces :: String -> String
+dropStartSpaces = unlines . map (dropWhile isSpace) . lines
 
 levenshteinDistanceWith :: (String -> String) -> String -> String -> Int
 levenshteinDistanceWith f s1 s2 = levenshteinDistance defaultEditCosts  (f s1) (f s2)
