@@ -14,6 +14,7 @@ import Control.Monad.Except
 import Control.Monad.Logger
 import Data.Bifunctor
 import Data.List
+import Data.Maybe
 import Data.Ord
 import Data.String.Interpolate.IsString
 import Data.Yaml
@@ -54,11 +55,41 @@ checked act = do
   case ec of ExitSuccess -> pure stdout
              ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
 
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
-chooseBaseStyle baseStyles files = do
+class StyParams a where
+  formatStyArg :: a -> T.Text
+
+data UserForcedOpts = UserForcedOpts
+  { tabWidth :: Maybe Int
+  , useTab :: Maybe Bool
+  } deriving (Eq, Show)
+
+data InitialOpts = InitialOpts
+  { basedOnStyle :: T.Text
+  , ufos :: UserForcedOpts
+  } deriving (Eq, Show)
+
+instance StyParams InitialOpts where
+  formatStyArg InitialOpts { .. } = "{ " <> T.intercalate ", " (opts ufos) <> " }"
+    where
+      opts UserForcedOpts { .. } = [i|BasedOnStyle: #{basedOnStyle}|]
+                                 : catMaybes [ f "TabWidth" tabWidth
+                                             , f "UseTab" $ (\b -> if b then "Always" else "Never" :: String) <$> useTab
+                                             ]
+      f :: Show a => String -> Maybe a -> Maybe T.Text
+      f _ Nothing = Nothing
+      f label (Just val) = Just [i|#{label}: #{val}|]
+
+data Options = Options
+  { userFocedOpts :: UserForcedOpts
+  , inputFiles :: [String]
+  } deriving (Eq, Show)
+
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => UserForcedOpts -> [T.Text] -> [String] -> m T.Text
+chooseBaseStyle ufos baseStyles files = do
   logger <- askLoggerIO
   estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> flip runLoggingT logger $ runExceptT $ do
-    stdout <- checked [sh|clang-format --style="{BasedOnStyle: #{sty}, TabWidth: 4, UseTab: Always}" #{file}|]
+    let formattedSty = formatStyArg InitialOpts { basedOnStyle = sty, ufos = ufos }
+    stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
     source <- liftIO $ readFile file
     let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
     logDebugN [i|Initial guess for #{sty} at #{file}: #{dist}|]
@@ -71,7 +102,7 @@ chooseBaseStyle baseStyles files = do
 doWork :: (MonadError String m, MonadLoggerIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
-  baseStyle <- chooseBaseStyle baseStyles ["data/core.cpp", "data/core.h"]
+  baseStyle <- chooseBaseStyle (UserForcedOpts (Just 4) (Just True)) baseStyles ["data/core.cpp", "data/core.h"]
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   liftIO $ mapM_ print filledOptions
