@@ -1,5 +1,6 @@
 module Text.Levenshteins
-( blinding
+( blindTokens
+, levenshteinDistanceWith
 ) where
 
 import qualified Data.Sequence as S
@@ -18,5 +19,5 @@ blindTokens = toList . finalize . foldl' f (False, mempty) . S.fromList
       | hadToken = (False, out :|> '$' :|> ch)
       | otherwise = (False, out :|> ch)
 
-blinding :: String -> String -> Int
-blinding s1 s2 = levenshteinDistance defaultEditCosts (blindTokens s1) (blindTokens s2)
+levenshteinDistanceWith :: (String -> String) -> String -> String -> Int
+levenshteinDistanceWith f s1 s2 = levenshteinDistance defaultEditCosts  (f s1) (f s2)

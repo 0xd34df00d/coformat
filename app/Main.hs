@@ -20,11 +20,11 @@ import Data.String.Interpolate.IsString
 import Data.Void
 import System.Command.QQ
 
-import qualified Text.Levenshteins as LD
 import Clang.Coformat.Util
 import Clang.Format.Descr
 import Clang.Format.DescrParser
 import Clang.Format.YamlParser
+import Text.Levenshteins
 
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)
@@ -98,7 +98,7 @@ chooseBaseStyle ufos baseStyles files = do
     let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = toConfigItems ufos }
     stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
     source <- liftIO $ readFile file
-    let dist = LD.blinding source $ TL.unpack stdout
+    let dist = levenshteinDistanceWith blindTokens source $ TL.unpack stdout
     logDebugN [i|Initial guess for #{sty} at #{file}: #{dist}|]
     pure (sty, dist)
   sty2dists <- liftEither $ sequence estimates
