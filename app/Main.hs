@@ -5,26 +5,21 @@
 module Main where
 
 import qualified Data.ByteString.Lazy.Char8 as BSL
-import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
-import Control.Concurrent.Async
 import Control.Monad.Except
 import Control.Monad.Logger
 import Data.Bifunctor
 import Data.Foldable
 import Data.Maybe
-import Data.Ord
 import Data.String.Interpolate.IsString
-import Data.Void
 import System.Command.QQ
 
+import Clang.Coformat.Optimization
 import Clang.Coformat.Util
 import Clang.Format.Descr
 import Clang.Format.DescrParser
 import Clang.Format.YamlParser
-import Text.Levenshteins
 
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)
@@ -65,46 +60,10 @@ toConfigItems UserForcedOpts { .. } =
     unpackEnum _ Nothing = Nothing
     unpackEnum label (Just val) = Just ConfigItem { name = label, typ = CTEnum [val] val }
 
-data StyOpts = StyOpts
-  { basedOnStyle :: T.Text
-  , overriddenOpts :: [ConfigItemT 'Value]
-  }
-
-formatStyArg :: StyOpts -> T.Text
-formatStyArg StyOpts { .. } = "{ " <> T.intercalate ", " opts <> " }"
-  where
-    opts = [i|BasedOnStyle: #{basedOnStyle}|]
-         : [ [i|#{name}: #{fmtTyp typ}|]
-           | ConfigItem { .. } <- overriddenOpts
-           ]
-    fmtTyp (CTInt n) = show n
-    fmtTyp (CTUnsigned n) = show n
-    fmtTyp (CTString v) = absurd v
-    fmtTyp (CTStringVec v) = absurd v
-    fmtTyp (CTRawStringFormats v) = absurd v
-    fmtTyp (CTIncludeCats v) = absurd v
-    fmtTyp (CTBool b) = if b then "true" else "false"
-    fmtTyp (CTEnum _ opt) = T.unpack opt
-
 data Options = Options
   { userFocedOpts :: UserForcedOpts
   , inputFiles :: [String]
   } deriving (Eq, Show)
-
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => UserForcedOpts -> [T.Text] -> [String] -> m T.Text
-chooseBaseStyle ufos baseStyles files = do
-  logger <- askLoggerIO
-  estimates <- liftIO $ forConcurrently ((,) <$> baseStyles <*> files) $ \(sty, file) -> flip runLoggingT logger $ runExceptT $ do
-    let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = toConfigItems ufos }
-    stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
-    source <- liftIO $ readFile file
-    let dist = levenshteinDistanceWith blindTokens source $ TL.unpack stdout
-    logDebugN [i|Initial guess for #{sty} at #{file}: #{dist}|]
-    pure (sty, dist)
-  sty2dists <- liftEither $ sequence estimates
-  let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
-  forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
-  pure $ fst $ minimumBy (comparing snd) accumulated
 
 doWork :: (MonadError String m, MonadLoggerIO m) => m ()
 doWork = do
