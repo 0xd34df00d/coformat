@@ -21,7 +21,6 @@ import Data.Ord
 import Data.Sequence(Seq(..))
 import Data.String.Interpolate.IsString
 import Data.Void
-import Data.Yaml
 import System.Command.QQ
 import Text.EditDistance
 
@@ -130,11 +129,6 @@ doWork = do
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   liftIO $ mapM_ print filledOptions
-
-testYaml :: IO ()
-testYaml = do
-  Right (_, Object res) <- decodeFileWithWarnings @Value "sample.yaml"
-  mapM_ print $ sortOn fst $ HM.toList res
 
 main :: IO ()
 main = do
