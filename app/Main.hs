@@ -20,9 +20,9 @@ import Data.String.Interpolate.IsString
 import Data.Void
 import Data.Yaml
 import System.Command.QQ
-import System.Exit
 import Text.EditDistance
 
+import Clang.Coformat.Util
 import Clang.Format.Descr
 import Clang.Format.DescrParser
 import Clang.Format.YamlParser
@@ -49,12 +49,6 @@ parseOptsDescription path = do
        _ -> throwError [i|Unknown type for the `BaseStyles` option: #{typ baseStyles}|]
   where
     bosKey = "BasedOnStyle"
-
-checked :: (MonadError String m, MonadIO m) => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
-checked act = do
-  (ec, stdout, stderr) <- liftIO act
-  case ec of ExitSuccess -> pure stdout
-             ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
 
 data UserForcedOpts = UserForcedOpts
   { tabWidth :: Maybe Int
