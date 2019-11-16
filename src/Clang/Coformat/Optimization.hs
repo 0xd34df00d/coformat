@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables, ConstraintKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards, LambdaCase, TupleSections #-}
 
@@ -37,14 +38,16 @@ forConcurrently' lst act = do
   result <- liftIO $ forConcurrently lst $ \elt -> flip runLoggingT logger $ runExceptT $ act elt
   liftEither $ sequence result
 
+newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
+
 runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
-               => String -> String -> T.Text -> m Int
+               => String -> String -> T.Text -> m Score
 runClangFormat file logStr formattedSty = do
   stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
   source <- liftIO $ readFile file
   let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
   logDebugN [i|#{logStr}: #{dist}|]
-  pure dist
+  pure $ Score dist
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
 chooseBaseStyle baseStyles files = do
@@ -70,7 +73,7 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
 type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
 
 chooseBestOptVals :: OptMonad r m
-                  => [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Int, Int)]
+                  => [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Score, Int)]
 chooseBestOptVals dvs opts = do
   OptEnv { .. } <- ask
   forConcurrently' dvs $ \(MkDV (_ :: a), idx) -> do
