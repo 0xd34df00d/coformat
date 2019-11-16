@@ -89,14 +89,6 @@ chooseBestOptVals opts = do
     logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
     pure (bestOptVal, bestSum, idx)
 
-stepVC :: OptMonad r m
-       => [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
-stepVC opts = do
-  results <- chooseBestOptVals opts
-  let (bestOptVal, bestSum, bestIdx) = minimumBy (comparing (^._2)) results
-  logDebugN [i|Overall best step: change #{name $ opts !! bestIdx} to #{bestOptVal} (gives #{bestSum})|]
-  pure $ update bestIdx (\cfg -> cfg { typ = bestOptVal }) opts
-
 class DiscreteVariate a where
   variate :: a -> [a]
   varPrism :: Prism' (ConfigTypeT 'Value) a
