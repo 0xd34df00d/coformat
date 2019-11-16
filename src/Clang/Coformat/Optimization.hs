@@ -29,10 +29,10 @@ forConcurrently' lst act = do
   result <- liftIO $ forConcurrently lst $ \elt -> flip runLoggingT logger $ runExceptT $ act elt
   liftEither $ sequence result
 
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [ConfigItemT 'Value] -> [T.Text] -> [String] -> m T.Text
-chooseBaseStyle ufos baseStyles files = do
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
+chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
-    let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = ufos }
+    let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = [] }
     stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
     source <- liftIO $ readFile file
     let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout

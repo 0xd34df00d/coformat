@@ -44,31 +44,15 @@ parseOptsDescription path = do
   where
     bosKey = "BasedOnStyle"
 
-data UserForcedOpts = UserForcedOpts
-  { tabWidth :: Maybe Int
-  , useTab :: Maybe Bool
-  } deriving (Eq, Show)
-
-toConfigItems :: UserForcedOpts -> [ConfigItemT 'Value]
-toConfigItems UserForcedOpts { .. } =
-  catMaybes [ unpackInt "TabWidth" tabWidth
-            , unpackEnum "UseTab" $ (\b -> if b then "Always" else "Never") <$> useTab
-            ]
-  where
-    unpackInt _ Nothing = Nothing
-    unpackInt label (Just val) = Just ConfigItem { name = label, typ = CTInt val }
-    unpackEnum _ Nothing = Nothing
-    unpackEnum label (Just val) = Just ConfigItem { name = label, typ = CTEnum [val] val }
-
-data Options = Options
-  { userFocedOpts :: UserForcedOpts
-  , inputFiles :: [String]
+newtype Options = Options
+  { inputFiles :: [String]
   } deriving (Eq, Show)
 
 doWork :: (MonadError String m, MonadLoggerIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
-  baseStyle <- chooseBaseStyle (UserForcedOpts (Just 4) (Just True)) baseStyles ["data/core.cpp", "data/core.h"]
+  let files = ["data/core.cpp", "data/core.h"]
+  baseStyle <- chooseBaseStyle baseStyles files
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   liftIO $ mapM_ print filledOptions
