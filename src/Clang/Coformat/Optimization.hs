@@ -61,20 +61,24 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
     variated = variate $ typ (opts !! idx) ^?! thePrism
     updater v cfg = cfg { typ = typ cfg & thePrism .~ v }
 
+chooseBestOptVals :: (MonadLoggerIO m, MonadError String m)
+                  => T.Text -> [String] -> [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Int, Int)]
+chooseBestOptVals baseStyle files dvs opts = forConcurrently' dvs $ \(MkDV (_ :: a), idx) -> do
+  let optName = name $ opts !! idx
+  opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
+    let optValue = typ $ opts' !! idx
+    let formattedSty = formatStyArg StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
+    dists <- forM files $ \file -> runClangFormat file [i|Variate guess for #{optName}=#{optValue} at #{file}|] formattedSty
+    logDebugN [i|Total dist for #{optName}=#{optValue}: #{sum dists}|]
+    pure (optValue, sum dists)
+  let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
+  logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
+  pure (bestOptVal, bestSum, idx)
+
 stepVC :: (MonadLoggerIO m, MonadError String m)
        => T.Text -> [String] -> [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
 stepVC baseStyle files dvs opts = do
-  results <- forConcurrently' dvs $ \(MkDV (_ :: a), idx) -> do
-    let optName = name $ opts !! idx
-    opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
-      let optValue = typ $ opts' !! idx
-      let formattedSty = formatStyArg StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
-      dists <- forM files $ \file -> runClangFormat file [i|Variate guess for #{optName}=#{optValue} at #{file}|] formattedSty
-      logDebugN [i|Total dist for #{optName}=#{optValue}: #{sum dists}|]
-      pure (optValue, sum dists)
-    let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
-    pure (bestOptVal, bestSum, idx)
+  results <- chooseBestOptVals baseStyle files dvs opts
   let (bestOptVal, bestSum, bestIdx) = minimumBy (comparing (^._2)) results
   logDebugN [i|Overall best step: change #{name $ opts !! bestIdx} to #{bestOptVal} (gives #{bestSum})|]
   pure $ update bestIdx (\cfg -> cfg { typ = bestOptVal }) opts
