@@ -13,6 +13,7 @@ import Control.Lens
 import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
+import Control.Monad.State.Strict
 import Data.List
 import Data.Ord
 import Data.Proxy
@@ -79,13 +80,19 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
 
 type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
 
-chooseBestOptVals :: OptMonad r m
-                  => [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Score, Int)]
-chooseBestOptVals opts = do
+data OptState = OptState
+  { currentOpts :: [ConfigItemT 'Value]
+  , currentScore :: Score
+  } deriving (Show)
+
+chooseBestOptVals :: (OptMonad r m, Has OptState r)
+                  => m [(ConfigTypeT 'Value, Score, Int)]
+chooseBestOptVals = do
   OptEnv { .. } <- ask
+  OptState { .. } <- ask
   forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> do
-    let optName = name $ opts !! idx
-    opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
+    let optName = name $ currentOpts !! idx
+    opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
       sumScore <- runClangFormatFiles files [i|Variate guess for #{optName}=#{optValue}|] StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
