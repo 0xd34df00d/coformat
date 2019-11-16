@@ -74,7 +74,6 @@ stepVC baseStyle files dvs opts = do
       pure (optValue, sum dists)
     let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
     logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
     pure (bestOptVal, bestSum, idx)
   let (bestOptVal, bestSum, bestIdx) = minimumBy (comparing (^._2)) results
   logDebugN [i|Overall best step: change #{name $ opts !! bestIdx} to #{bestOptVal} (gives #{bestSum})|]
