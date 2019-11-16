@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes, RecordWildCards, LambdaCase #-}
+{-# LANGUAGE QuasiQuotes, RecordWildCards, LambdaCase, TupleSections #-}
 
 module Clang.Coformat.Optimization where
 
@@ -31,15 +31,19 @@ forConcurrently' lst act = do
   result <- liftIO $ forConcurrently lst $ \elt -> flip runLoggingT logger $ runExceptT $ act elt
   liftEither $ sequence result
 
+runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
+               => String -> String -> T.Text -> m Int
+runClangFormat file logStr formattedSty = do
+  stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
+  source <- liftIO $ readFile file
+  let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
+  logDebugN [i|#{logStr}: #{dist}|]
+  pure dist
+
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
 chooseBaseStyle baseStyles files = do
-  sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
-    let formattedSty = formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = [] }
-    stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
-    source <- liftIO $ readFile file
-    let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
-    logDebugN [i|Initial guess for #{sty} at #{file}: #{dist}|]
-    pure (sty, dist)
+  sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
+    (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = [] })
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ fst $ minimumBy (comparing snd) accumulated
@@ -65,12 +69,7 @@ stepVC baseStyle files dvs opts = do
     opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
       let formattedSty = formatStyArg StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
-      dists <- forM files $ \file -> do
-        stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
-        source <- liftIO $ readFile file
-        let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
-        logDebugN [i|Variate guess for #{optName}=#{optValue} at #{file}: #{dist}|]
-        pure dist
+      dists <- forM files $ \file -> runClangFormat file [i|Variate guess for #{optName}=#{optValue} at #{file}|] formattedSty
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sum dists}|]
       pure (optValue, sum dists)
     let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
