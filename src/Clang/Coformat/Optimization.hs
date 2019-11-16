@@ -50,6 +50,12 @@ runClangFormat file logStr formattedSty = do
   logDebugN [i|#{logStr}: #{dist}|]
   pure $ Score dist
 
+runClangFormatFiles :: (MonadError String m, MonadIO m, MonadLogger m)
+                    => [String] -> String -> StyOpts -> m Score
+runClangFormatFiles files logStr sty = fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
+  where
+    formattedSty = formatStyArg sty
+
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
@@ -81,10 +87,9 @@ chooseBestOptVals opts = do
     let optName = name $ opts !! idx
     opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
-      let formattedSty = formatStyArg StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
-      dists <- forM files $ \file -> runClangFormat file [i|Variate guess for #{optName}=#{optValue} at #{file}|] formattedSty
-      logDebugN [i|Total dist for #{optName}=#{optValue}: #{sum dists}|]
-      pure (optValue, sum dists)
+      sumScore <- runClangFormatFiles files [i|Variate guess for #{optName}=#{optValue}|] StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
+      logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
+      pure (optValue, sumScore)
     let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
     logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
     pure (bestOptVal, bestSum, idx)
