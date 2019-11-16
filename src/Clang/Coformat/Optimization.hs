@@ -27,7 +27,8 @@ import Text.Levenshteins
 data OptEnv = OptEnv
   { baseStyle :: T.Text
   , files :: [String]
-  } deriving (Eq, Show)
+  , discreteVariables :: [IxedDiscreteVariable]
+  }
 
 forConcurrently' :: (MonadLoggerIO m, MonadError e m)
                  => [a]
@@ -73,10 +74,10 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
 type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
 
 chooseBestOptVals :: OptMonad r m
-                  => [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Score, Int)]
-chooseBestOptVals dvs opts = do
+                  => [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Score, Int)]
+chooseBestOptVals opts = do
   OptEnv { .. } <- ask
-  forConcurrently' dvs $ \(MkDV (_ :: a), idx) -> do
+  forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> do
     let optName = name $ opts !! idx
     opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
@@ -89,9 +90,9 @@ chooseBestOptVals dvs opts = do
     pure (bestOptVal, bestSum, idx)
 
 stepVC :: OptMonad r m
-       => [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
-stepVC dvs opts = do
-  results <- chooseBestOptVals dvs opts
+       => [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
+stepVC opts = do
+  results <- chooseBestOptVals opts
   let (bestOptVal, bestSum, bestIdx) = minimumBy (comparing (^._2)) results
   logDebugN [i|Overall best step: change #{name $ opts !! bestIdx} to #{bestOptVal} (gives #{bestSum})|]
   pure $ update bestIdx (\cfg -> cfg { typ = bestOptVal }) opts
@@ -118,3 +119,8 @@ typToDV :: ConfigTypeT 'Value -> Maybe DiscreteVariable
 typToDV val = msum [ MkDV <$> val ^? varPrism @Bool
                    , MkDV <$> val ^? varPrism @([T.Text], T.Text)
                    ]
+
+data IxedDiscreteVariable = IxedDiscreteVariable
+  { discreteVar :: DiscreteVariable
+  , varIdx :: Int
+  }
