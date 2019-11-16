@@ -101,6 +101,16 @@ chooseBestOptVals = do
     logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
     pure (bestOptVal, bestSum, idx)
 
+stepGD :: (OptMonad r m, MonadState OptState m) => m Score
+stepGD = do
+  current <- get
+  env@OptEnv { .. } <- ask
+  results <- runReaderT chooseBestOptVals (current, env)
+  let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
+  sumScore <- runClangFormatFiles files [i|Total score after optimization|] StyOpts { basedOnStyle = baseStyle, overriddenOpts = nextOpts }
+  put OptState { currentOpts = nextOpts, currentScore = sumScore }
+  pure sumScore
+
 class DiscreteVariate a where
   variate :: a -> [a]
   varPrism :: Prism' (ConfigTypeT 'Value) a
