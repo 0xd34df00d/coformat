@@ -28,11 +28,12 @@ dependencies:
 - extra
 - html-conduit
 - interpolate
-- text
+- lens
 - monad-logger
 - mtl
 - scientific
 - temporary
+- text
 - unordered-containers
 - xml-conduit
 - yaml

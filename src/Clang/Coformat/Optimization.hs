@@ -8,6 +8,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Control.Concurrent.Async
+import Control.Lens
 import Control.Monad.Except
 import Control.Monad.Logger
 import Data.List
@@ -41,3 +42,26 @@ chooseBaseStyle baseStyles files = do
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ fst $ minimumBy (comparing snd) accumulated
+
+class DiscreteVariate a where
+  variate :: a -> [a]
+  varPrism :: Prism' (ConfigTypeT 'Value) a
+
+instance DiscreteVariate Bool where
+  variate b = [not b]
+  varPrism = prism' CTBool $ \case CTBool b -> Just b
+                                   _ -> Nothing
+
+instance DiscreteVariate ([T.Text], T.Text) where
+  variate (vars, cur) = [(vars, next) | next <- vars, next /= cur]
+  varPrism = prism' (uncurry CTEnum) $ \case CTEnum vars cur -> Just (vars, cur)
+                                             _ -> Nothing
+
+data DiscreteVariable where
+  -- TODO proxy should be enough
+  MkDV :: DiscreteVariate a => a -> DiscreteVariable
+
+typToDV :: ConfigTypeT 'Value -> Maybe DiscreteVariable
+typToDV val = msum [ MkDV <$> val ^? varPrism @Bool
+                   , MkDV <$> val ^? varPrism @([T.Text], T.Text)
+                   ]
