@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables #-}
+{-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables, ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards, LambdaCase, TupleSections #-}
 
@@ -11,6 +11,7 @@ import Control.Concurrent.Async
 import Control.Lens
 import Control.Monad.Except
 import Control.Monad.Logger
+import Control.Monad.Reader.Has hiding(update)
 import Data.List
 import Data.Ord
 import Data.Proxy
@@ -21,6 +22,11 @@ import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Format.Descr
 import Text.Levenshteins
+
+data OptEnv = OptEnv
+  { baseStyle :: T.Text
+  , files :: [String]
+  } deriving (Eq, Show)
 
 forConcurrently' :: (MonadLoggerIO m, MonadError e m)
                  => [a]
@@ -61,24 +67,28 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
     variated = variate $ typ (opts !! idx) ^?! thePrism
     updater v cfg = cfg { typ = typ cfg & thePrism .~ v }
 
-chooseBestOptVals :: (MonadLoggerIO m, MonadError String m)
-                  => T.Text -> [String] -> [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Int, Int)]
-chooseBestOptVals baseStyle files dvs opts = forConcurrently' dvs $ \(MkDV (_ :: a), idx) -> do
-  let optName = name $ opts !! idx
-  opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
-    let optValue = typ $ opts' !! idx
-    let formattedSty = formatStyArg StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
-    dists <- forM files $ \file -> runClangFormat file [i|Variate guess for #{optName}=#{optValue} at #{file}|] formattedSty
-    logDebugN [i|Total dist for #{optName}=#{optValue}: #{sum dists}|]
-    pure (optValue, sum dists)
-  let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
-  logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
-  pure (bestOptVal, bestSum, idx)
+type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
 
-stepVC :: (MonadLoggerIO m, MonadError String m)
-       => T.Text -> [String] -> [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
-stepVC baseStyle files dvs opts = do
-  results <- chooseBestOptVals baseStyle files dvs opts
+chooseBestOptVals :: OptMonad r m
+                  => [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [(ConfigTypeT 'Value, Int, Int)]
+chooseBestOptVals dvs opts = do
+  OptEnv { .. } <- ask
+  forConcurrently' dvs $ \(MkDV (_ :: a), idx) -> do
+    let optName = name $ opts !! idx
+    opt2dists <- forM (variateAt @a Proxy idx opts) $ \opts' -> do
+      let optValue = typ $ opts' !! idx
+      let formattedSty = formatStyArg StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
+      dists <- forM files $ \file -> runClangFormat file [i|Variate guess for #{optName}=#{optValue} at #{file}|] formattedSty
+      logDebugN [i|Total dist for #{optName}=#{optValue}: #{sum dists}|]
+      pure (optValue, sum dists)
+    let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
+    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
+    pure (bestOptVal, bestSum, idx)
+
+stepVC :: OptMonad r m
+       => [(DiscreteVariable, Int)] -> [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
+stepVC dvs opts = do
+  results <- chooseBestOptVals dvs opts
   let (bestOptVal, bestSum, bestIdx) = minimumBy (comparing (^._2)) results
   logDebugN [i|Overall best step: change #{name $ opts !! bestIdx} to #{bestOptVal} (gives #{bestSum})|]
   pure $ update bestIdx (\cfg -> cfg { typ = bestOptVal }) opts
