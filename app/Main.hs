@@ -9,9 +9,10 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TL
 import Control.Monad.Except
 import Control.Monad.Logger
+import Control.Monad.Reader
+import Control.Monad.State.Strict
 import Data.Bifunctor
 import Data.Foldable
-import Data.Maybe
 import Data.String.Interpolate.IsString
 import System.Command.QQ
 
@@ -56,7 +57,13 @@ doWork = do
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
-  liftIO $ mapM_ print filledOptions
+  let discreteVariables = [ IxedDiscreteVariable dv idx
+                          | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
+                          ]
+  let optEnv = OptEnv { .. }
+  let optState = OptState { currentOpts = filledOptions, currentScore = baseScore }
+  res <- flip runReaderT optEnv $ runStateT stepGD optState
+  liftIO $ print res
 
 main :: IO ()
 main = do
