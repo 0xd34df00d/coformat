@@ -9,7 +9,6 @@ import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Control.Concurrent.Async
 import Control.Lens
 import Control.Monad.Except
 import Control.Monad.Logger
@@ -32,15 +31,6 @@ data OptEnv = OptEnv
   , files :: [String]
   , discreteVariables :: [IxedDiscreteVariable]
   }
-
-forConcurrently' :: (MonadLoggerIO m, MonadError e m)
-                 => [a]
-                 -> (forall m'. (MonadLoggerIO m', MonadError e m') => a -> m' b)
-                 -> m [b]
-forConcurrently' lst act = do
-  logger <- askLoggerIO
-  result <- liftIO $ forConcurrently lst $ \elt -> flip runLoggingT logger $ runExceptT $ act elt
-  liftEither $ sequence result
 
 newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
 
@@ -67,10 +57,6 @@ chooseBaseStyle baseStyles files = do
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
-
-update :: Int -> (a -> a) -> [a] -> [a]
-update idx f = zipWith z [0..]
-  where z idx' val = if idx' == idx then f val else val
 
 variateAt :: forall a. DiscreteVariate a
           => Proxy a -> Int -> [ConfigItemT 'Value] -> [[ConfigItemT 'Value]]
