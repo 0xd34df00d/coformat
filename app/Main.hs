@@ -52,7 +52,8 @@ doWork :: (MonadError String m, MonadLoggerIO m) => m ()
 doWork = do
   (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let files = ["data/core.cpp", "data/core.h"]
-  baseStyle <- chooseBaseStyle baseStyles files
+  (baseStyle, baseScore) <- chooseBaseStyle baseStyles files
+  logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   liftIO $ mapM_ print filledOptions

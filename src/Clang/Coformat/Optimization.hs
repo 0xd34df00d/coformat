@@ -57,13 +57,13 @@ runClangFormatFiles files logStr sty = fmap sum $ forM files $ \file -> runClang
   where
     formattedSty = formatStyArg sty
 
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m T.Text
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
     (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = [] })
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
-  pure $ fst $ minimumBy (comparing snd) accumulated
+  pure $ minimumBy (comparing snd) accumulated
 
 update :: Int -> (a -> a) -> [a] -> [a]
 update idx f = zipWith z [0..]
