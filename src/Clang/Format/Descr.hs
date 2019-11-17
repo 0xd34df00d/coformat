@@ -33,7 +33,7 @@ deriving instance Show (ConfigTypeT 'Supported)
 deriving instance Show (ConfigTypeT 'Value)
 
 data ConfigItemT f = ConfigItem
-  { name :: T.Text
+  { name :: [T.Text]
   , typ :: ConfigTypeT f
   }
 

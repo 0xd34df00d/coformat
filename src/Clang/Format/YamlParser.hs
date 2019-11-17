@@ -59,9 +59,9 @@ fillConfigItemsFromObj :: (MonadError e m, CoHas YamlAnalysisError e)
 fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
   where
     fillConfigItem ConfigItem { .. } = do
-      yamlVal <- case HM.lookup name fields of
+      yamlVal <- case HM.lookup nameConcatted fields of
                       Just val -> pure val
-                      Nothing -> throwError $ ValueNotFound name
+                      Nothing -> throwError $ ValueNotFound nameConcatted
       val <- case (typ, yamlVal) of
                   (CTInt _, Number num)
                       | Just int <- toBoundedInteger num -> pure $ CTInt int
@@ -71,5 +71,7 @@ fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
                   (CTBool _, Bool b) -> pure $ CTBool b
                   (CTEnum vars _, String s)
                       | s `elem` vars -> pure $ CTEnum vars s
-                  _ -> throwError $ IncompatibleValue name typ yamlVal
+                  _ -> throwError $ IncompatibleValue nameConcatted typ yamlVal
       pure ConfigItem { name = name, typ = val }
+      where
+        nameConcatted = T.intercalate "." name

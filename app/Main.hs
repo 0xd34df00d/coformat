@@ -43,7 +43,7 @@ parseOptsDescription path = do
        CTEnum { .. } -> pure (variants, varyingOptions)
        _ -> throwError [i|Unknown type for the `BaseStyles` option: #{typ baseStyles}|]
   where
-    bosKey = "BasedOnStyle"
+    bosKey = ["BasedOnStyle"]
 
 newtype Options = Options
   { inputFiles :: [String]

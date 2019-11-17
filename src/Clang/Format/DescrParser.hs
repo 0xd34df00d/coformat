@@ -37,8 +37,8 @@ parseCursor cur = do
 braceWrappingKludge :: [ConfigItemT 'Parsed] -> Either String [ConfigItemT 'Parsed]
 braceWrappingKludge = concatMapM f
   where
-    f c@ConfigItem { .. } | name /= "BraceWrapping" = pure [c]
-    f ConfigItem { typ = CTEnum { .. } } = pure [ ConfigItem { name = "BraceWrapping." <> var, typ = CTBool () }
+    f c@ConfigItem { .. } | name /= ["BraceWrapping"] = pure [c]
+    f ConfigItem { typ = CTEnum { .. } } = pure [ ConfigItem { name = ["BraceWrapping", var], typ = CTBool () }
                                                 | var <- variants
                                                 , isUpper $ T.head var
                                                 ]
@@ -46,9 +46,10 @@ braceWrappingKludge = concatMapM f
 
 parseItem :: (Cursor, Cursor) -> Either String (ConfigItemT 'Parsed)
 parseItem (header, body) = do
-  name <- header @>. [jq|strong|]
+  nameToken <- header @>. [jq|strong|]
   typStr <- header @>. [jq|span.pre|]
-  typ <- parseType name typStr body
+  typ <- parseType nameToken typStr body
+  let name = [nameToken]
   pure ConfigItem { .. }
 
 parseType :: T.Text -> T.Text -> Cursor -> Either String (ConfigTypeT 'Parsed)
