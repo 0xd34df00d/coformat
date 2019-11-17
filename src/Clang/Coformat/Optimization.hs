@@ -48,7 +48,7 @@ runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
                => String -> String -> BSL.ByteString -> m Score
 runClangFormat file logStr formattedSty = do
   let unpackedSty = BSL.unpack formattedSty
-  stdout <- checked [sh|clang-format --style="#{unpackedSty}" #{file}|]
+  stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{file}|]
   source <- liftIO $ readFile file
   let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
   logDebugN [i|#{logStr}: #{dist}|]
