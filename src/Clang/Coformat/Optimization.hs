@@ -63,7 +63,7 @@ runClangFormatFiles files logStr sty = fmap sum $ forM files $ \file -> runClang
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
-    (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, overriddenOpts = [] })
+    (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] })
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
@@ -97,7 +97,7 @@ chooseBestOptVals = do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
-      sumScore <- runClangFormatFiles files [i|Variate guess for #{optName}=#{optValue}|] StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
+      sumScore <- runClangFormatFiles files [i|Variate guess for #{optName}=#{optValue}|] StyOpts { basedOnStyle = baseStyle, additionalOpts = opts' }
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
@@ -113,7 +113,7 @@ stepGD = do
   env@OptEnv { .. } <- ask
   results <- runReaderT chooseBestOptVals (current, env)
   let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
-  sumScore <- runClangFormatFiles files [i|Total score after optimization|] StyOpts { basedOnStyle = baseStyle, overriddenOpts = nextOpts }
+  sumScore <- runClangFormatFiles files [i|Total score after optimization|] StyOpts { basedOnStyle = baseStyle, additionalOpts = nextOpts }
   put OptState { currentOpts = nextOpts, currentScore = sumScore }
   pure sumScore
 

@@ -18,11 +18,11 @@ import Clang.Format.Descr
 
 data StyOpts = StyOpts
   { basedOnStyle :: T.Text
-  , overriddenOpts :: [ConfigItemT 'Value]
+  , additionalOpts :: [ConfigItemT 'Value]
   }
 
 formatStyArg :: StyOpts -> BSL.ByteString
-formatStyArg StyOpts { .. } = encode $ Object $ foldl' f (HM.singleton "BasedOnStyle" $ String basedOnStyle) overriddenOpts
+formatStyArg StyOpts { .. } = encode $ Object $ foldl' f (HM.singleton "BasedOnStyle" $ String basedOnStyle) additionalOpts
   where
     f hm ConfigItem { .. } = updateRec typ name hm
 
