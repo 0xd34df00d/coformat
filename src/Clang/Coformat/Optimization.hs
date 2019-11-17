@@ -15,6 +15,7 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
 import Data.List
+import Data.Maybe
 import Data.Ord
 import Data.Proxy
 import Data.String.Interpolate.IsString
@@ -90,7 +91,7 @@ chooseBestOptVals :: (OptMonad r m, Has OptState r)
 chooseBestOptVals = do
   OptEnv { .. } <- ask
   OptState { .. } <- ask
-  forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> do
+  partialResults <- forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
@@ -98,8 +99,11 @@ chooseBestOptVals = do
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore}|]
-    pure (bestOptVal, bestScore, idx)
+    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore}|]
+    pure $ if bestScore < currentScore
+            then Just (bestOptVal, bestScore, idx)
+            else Nothing
+  pure $ catMaybes partialResults
 
 stepGD :: (OptMonad r m, MonadState OptState m) => m Score
 stepGD = do
