@@ -97,9 +97,9 @@ chooseBestOptVals = do
       sumScore <- runClangFormatFiles files [i|Variate guess for #{optName}=#{optValue}|] StyOpts { basedOnStyle = baseStyle, overriddenOpts = opts' }
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
-    let (bestOptVal, bestSum) = minimumBy (comparing snd) opt2dists
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestSum}|]
-    pure (bestOptVal, bestSum, idx)
+    let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
+    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore}|]
+    pure (bestOptVal, bestScore, idx)
 
 stepGD :: (OptMonad r m, MonadState OptState m) => m Score
 stepGD = do
