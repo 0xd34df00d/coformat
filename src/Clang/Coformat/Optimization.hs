@@ -44,11 +44,15 @@ runClangFormat file logStr formattedSty = do
   logDebugN [i|#{logStr}: #{dist}|]
   pure $ Score dist
 
-runClangFormatFiles :: (MonadError String m, MonadIO m, MonadLogger m)
-                    => [String] -> String -> StyOpts -> m Score
-runClangFormatFiles files logStr sty = fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
-  where
-    formattedSty = formatStyArg sty
+type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
+
+runClangFormatFiles :: OptMonad r m
+                    => [ConfigItemT 'Value] -> String -> m Score
+runClangFormatFiles varOpts logStr = do
+  OptEnv { .. } <- ask
+  let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = varOpts }
+  let formattedSty = formatStyArg sty
+  fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
@@ -67,8 +71,6 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
     variated = variate $ typ (opts !! idx) ^?! thePrism
     updater v cfg = cfg { typ = typ cfg & thePrism .~ v }
 
-type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
-
 data OptState = OptState
   { currentOpts :: [ConfigItemT 'Value]
   , currentScore :: Score
@@ -77,13 +79,13 @@ data OptState = OptState
 chooseBestOptVals :: (OptMonad r m, Has OptState r)
                   => m [(ConfigTypeT 'Value, Score, Int)]
 chooseBestOptVals = do
-  OptEnv { .. } <- ask
+  env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> do
+  partialResults <- forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
-      sumScore <- runClangFormatFiles files [i|Variate guess for #{optName}=#{optValue}|] StyOpts { basedOnStyle = baseStyle, additionalOpts = opts' }
+      sumScore <- runClangFormatFiles opts' [i|Variate guess for #{optName}=#{optValue}|]
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
@@ -99,7 +101,7 @@ stepGD = do
   env@OptEnv { .. } <- ask
   results <- runReaderT chooseBestOptVals (current, env)
   let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
-  sumScore <- runClangFormatFiles files [i|Total score after optimization|] StyOpts { basedOnStyle = baseStyle, additionalOpts = nextOpts }
+  sumScore <- runClangFormatFiles nextOpts [i|Total score after optimization|]
   put OptState { currentOpts = nextOpts, currentScore = sumScore }
   pure sumScore
 
