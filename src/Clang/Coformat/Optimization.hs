@@ -101,7 +101,7 @@ chooseBestOptVals = do
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore}|]
+    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore})|]
     pure $ if bestScore < currentScore
             then Just (bestOptVal, bestScore, idx)
             else Nothing
