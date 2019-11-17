@@ -30,6 +30,7 @@ data OptEnv = OptEnv
   { baseStyle :: T.Text
   , files :: [String]
   , discreteVariables :: [IxedDiscreteVariable]
+  , constantOpts :: [ConfigItemT 'Value]
   }
 
 newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
@@ -50,7 +51,7 @@ runClangFormatFiles :: OptMonad r m
                     => [ConfigItemT 'Value] -> String -> m Score
 runClangFormatFiles varOpts logStr = do
   OptEnv { .. } <- ask
-  let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = varOpts }
+  let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
   let formattedSty = formatStyArg sty
   fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
 

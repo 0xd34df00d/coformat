@@ -51,7 +51,8 @@ newtype Options = Options
 
 doWork :: (MonadError String m, MonadLoggerIO m) => m ()
 doWork = do
-  (baseStyles, varyingOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
+  (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
+  let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
   let files = ["data/core.cpp", "data/core.h"]
   (baseStyle, baseScore) <- chooseBaseStyle baseStyles files
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
@@ -64,6 +65,9 @@ doWork = do
   let optState = OptState { currentOpts = filledOptions, currentScore = baseScore }
   res <- flip runReaderT optEnv $ runStateT stepGD optState
   liftIO $ print res
+  where
+    constantOpts = [ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }]
+    constantOptsNames = name <$> constantOpts
 
 main :: IO ()
 main = do
