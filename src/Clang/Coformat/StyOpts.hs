@@ -1,11 +1,17 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts, GADTs #-}
-{-# LANGUAGE QuasiQuotes, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Clang.Coformat.StyOpts where
 
+import qualified Data.ByteString.Lazy.Char8 as BSL
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import Data.String.Interpolate.IsString
+import Control.Lens
+import Data.Aeson
+import Data.Aeson.Lens(_Object)
+import Data.List
+import Data.Maybe
 import Data.Void
 
 import Clang.Format.Descr
@@ -15,18 +21,21 @@ data StyOpts = StyOpts
   , overriddenOpts :: [ConfigItemT 'Value]
   }
 
-formatStyArg :: StyOpts -> T.Text
-formatStyArg StyOpts { .. } = "{ " <> T.intercalate ", " opts <> " }"
+formatStyArg :: StyOpts -> BSL.ByteString
+formatStyArg StyOpts { .. } = encode $ Object $ foldl' f (HM.singleton "BasedOnStyle" $ String basedOnStyle) overriddenOpts
   where
-    opts = [i|BasedOnStyle: #{basedOnStyle}|]
-         : [ [i|#{name}: #{fmtTyp typ}|]
-           | ConfigItem { .. } <- overriddenOpts
-           ]
-    fmtTyp (CTInt n) = show n
-    fmtTyp (CTUnsigned n) = show n
-    fmtTyp (CTString v) = absurd v
-    fmtTyp (CTStringVec v) = absurd v
-    fmtTyp (CTRawStringFormats v) = absurd v
-    fmtTyp (CTIncludeCats v) = absurd v
-    fmtTyp (CTBool b) = if b then "true" else "false"
-    fmtTyp (CTEnum _ opt) = T.unpack opt
+    f hm ConfigItem { .. } = updateRec typ name hm
+
+    updateRec typ [key] = HM.insert key (toJson typ)
+    updateRec typ (key:rest) = HM.alter (Just . Object . updateRec typ rest . getObj) key
+    updateRec _ [] = id
+    getObj = fromMaybe mempty . ((^? _Object) =<<)
+
+    toJson (CTInt n) = Number $ fromIntegral n
+    toJson (CTUnsigned n) = Number $ fromIntegral n
+    toJson (CTString v) = absurd v
+    toJson (CTStringVec v) = absurd v
+    toJson (CTRawStringFormats v) = absurd v
+    toJson (CTIncludeCats v) = absurd v
+    toJson (CTBool b) = Bool b
+    toJson (CTEnum _ opt) = String opt

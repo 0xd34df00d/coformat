@@ -5,6 +5,7 @@
 
 module Clang.Coformat.Optimization where
 
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -44,9 +45,10 @@ forConcurrently' lst act = do
 newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
 
 runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
-               => String -> String -> T.Text -> m Score
+               => String -> String -> BSL.ByteString -> m Score
 runClangFormat file logStr formattedSty = do
-  stdout <- checked [sh|clang-format --style="#{formattedSty}" #{file}|]
+  let unpackedSty = BSL.unpack formattedSty
+  stdout <- checked [sh|clang-format --style="#{unpackedSty}" #{file}|]
   source <- liftIO $ readFile file
   let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
   logDebugN [i|#{logStr}: #{dist}|]
