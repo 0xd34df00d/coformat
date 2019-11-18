@@ -99,12 +99,15 @@ chooseBestOptVals = do
 stepGDCategorical :: (OptMonad r m, MonadState OptState m) => m Score
 stepGDCategorical = do
   current <- get
-  env@OptEnv { .. } <- ask
-  results <- runReaderT chooseBestOptVals (current, env)
-  let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
-  sumScore <- runClangFormatFiles nextOpts [i|Total score after optimization|]
-  put OptState { currentOpts = nextOpts, currentScore = sumScore }
-  pure sumScore
+  if currentScore current == 0
+  then pure 0
+  else do
+    env@OptEnv { .. } <- ask
+    results <- runReaderT chooseBestOptVals (current, env)
+    let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
+    sumScore <- runClangFormatFiles nextOpts [i|Total score after optimization|]
+    put OptState { currentOpts = nextOpts, currentScore = sumScore }
+    pure sumScore
 
 class DiscreteVariate a where
   variate :: a -> [a]
