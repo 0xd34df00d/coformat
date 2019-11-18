@@ -96,8 +96,8 @@ chooseBestOptVals = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGD :: (OptMonad r m, MonadState OptState m) => m Score
-stepGD = do
+stepGDCategorical :: (OptMonad r m, MonadState OptState m) => m Score
+stepGDCategorical = do
   current <- get
   env@OptEnv { .. } <- ask
   results <- runReaderT chooseBestOptVals (current, env)
