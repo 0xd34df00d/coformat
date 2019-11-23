@@ -35,30 +35,33 @@ data OptEnv = OptEnv
 
 newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
 
+initialOptNormalizer :: StringNormalizer
+initialOptNormalizer = blindTokens . dropStartSpaces
+
 runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
-               => String -> String -> BSL.ByteString -> m Score
-runClangFormat file logStr formattedSty = do
+               => StringNormalizer -> String -> String -> BSL.ByteString -> m Score
+runClangFormat norm file logStr formattedSty = do
   let unpackedSty = BSL.unpack formattedSty
   stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{file}|]
   source <- liftIO $ readFile file
-  let dist = levenshteinDistanceWith (blindTokens . dropStartSpaces) source $ TL.unpack stdout
+  let dist = levenshteinDistanceWith norm source $ TL.unpack stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure $ Score dist
 
 type OptMonad r m = (MonadLoggerIO m, MonadError String m, MonadReader r m, Has OptEnv r)
 
 runClangFormatFiles :: OptMonad r m
-                    => [ConfigItemT 'Value] -> String -> m Score
-runClangFormatFiles varOpts logStr = do
+                    => StringNormalizer -> [ConfigItemT 'Value] -> String -> m Score
+runClangFormatFiles norm varOpts logStr = do
   OptEnv { .. } <- ask
   let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
   let formattedSty = formatStyArg sty
-  fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
+  fmap sum $ forM files $ \file -> runClangFormat norm file [i|#{logStr} at #{file}|] formattedSty
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
-    (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] })
+    (sty,) <$> runClangFormat initialOptNormalizer file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] })
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
@@ -86,7 +89,7 @@ chooseBestOptVals = do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
-      sumScore <- runClangFormatFiles opts' [i|Variate guess for #{optName}=#{optValue}|]
+      sumScore <- runClangFormatFiles initialOptNormalizer opts' [i|Variate guess for #{optName}=#{optValue}|]
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
@@ -103,7 +106,7 @@ stepGDCategorical = do
     env@OptEnv { .. } <- ask
     results <- runReaderT chooseBestOptVals (current, env)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
-    sumScore <- runClangFormatFiles nextOpts [i|Total score after optimization|]
+    sumScore <- runClangFormatFiles initialOptNormalizer nextOpts [i|Total score after optimization|]
     put OptState { currentOpts = nextOpts, currentScore = sumScore }
 
 class DiscreteVariate a where
