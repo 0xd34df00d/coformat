@@ -1,6 +1,7 @@
 module Text.Levenshteins
 ( blindTokens
 , dropStartSpaces
+, StringNormalizer
 
 , levenshteinDistanceWith
 ) where
@@ -11,7 +12,9 @@ import Data.Foldable
 import Data.Sequence(Seq(..))
 import Text.EditDistance
 
-blindTokens :: String -> String
+type StringNormalizer = String -> String
+
+blindTokens :: StringNormalizer
 blindTokens = toList . finalize . foldl' f (False, mempty) . S.fromList
   where
     finalize (False, out) = out
@@ -21,8 +24,8 @@ blindTokens = toList . finalize . foldl' f (False, mempty) . S.fromList
       | hadToken = (False, out :|> '$' :|> ch)
       | otherwise = (False, out :|> ch)
 
-dropStartSpaces :: String -> String
+dropStartSpaces :: StringNormalizer
 dropStartSpaces = unlines . map (dropWhile isSpace) . lines
 
-levenshteinDistanceWith :: (String -> String) -> String -> String -> Int
+levenshteinDistanceWith :: StringNormalizer -> String -> String -> Int
 levenshteinDistanceWith f s1 s2 = levenshteinDistance defaultEditCosts  (f s1) (f s2)
