@@ -14,7 +14,7 @@ import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
-import Data.List
+import Data.Foldable
 import Data.Maybe
 import Data.Ord
 import Data.Proxy
@@ -68,9 +68,9 @@ chooseBaseStyle baseStyles files = do
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
 
-variateAt :: forall a. CategoricalVariate a
+variateAt :: forall a. (Variate a, Foldable (VariateResult a))
           => Proxy a -> Int -> [ConfigItemT 'Value] -> [[ConfigItemT 'Value]]
-variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
+variateAt _ idx opts = [ update idx (updater v') opts | v' <- toList variated ]
   where
     thePrism :: Prism' (ConfigTypeT 'Value) a
     thePrism = varPrism
