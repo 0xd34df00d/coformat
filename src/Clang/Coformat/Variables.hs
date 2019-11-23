@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, TypeFamilies, DataKinds, TypeApplications, ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveFoldable #-}
 
 module Clang.Coformat.Variables where
 
@@ -52,7 +53,7 @@ data IntegralVariateResult a
   = None
   | SingleDirection a
   | TwoDirections a a
-  deriving (Eq, Show)
+  deriving (Eq, Show, Foldable)
 
 instance Variate Int where
   type VariateResult Int = IntegralVariateResult
