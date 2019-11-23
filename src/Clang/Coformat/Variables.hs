@@ -10,30 +10,30 @@ import Control.Monad
 
 import Clang.Format.Descr
 
-class DiscreteVariate a where
+class CategoricalVariate a where
   variate :: a -> [a]
   varPrism :: Prism' (ConfigTypeT 'Value) a
 
-instance DiscreteVariate Bool where
+instance CategoricalVariate Bool where
   variate b = [not b]
   varPrism = prism' CTBool $ \case CTBool b -> Just b
                                    _ -> Nothing
 
-instance DiscreteVariate ([T.Text], T.Text) where
+instance CategoricalVariate ([T.Text], T.Text) where
   variate (vars, cur) = [(vars, next) | next <- vars, next /= cur]
   varPrism = prism' (uncurry CTEnum) $ \case CTEnum vars cur -> Just (vars, cur)
                                              _ -> Nothing
 
-data DiscreteVariable where
+data CategoricalVariable where
   -- TODO proxy should be enough
-  MkDV :: DiscreteVariate a => a -> DiscreteVariable
+  MkDV :: CategoricalVariate a => a -> CategoricalVariable
 
-typToDV :: ConfigTypeT 'Value -> Maybe DiscreteVariable
+typToDV :: ConfigTypeT 'Value -> Maybe CategoricalVariable
 typToDV val = msum [ MkDV <$> val ^? varPrism @Bool
                    , MkDV <$> val ^? varPrism @([T.Text], T.Text)
                    ]
 
-data IxedDiscreteVariable = IxedDiscreteVariable
-  { discreteVar :: DiscreteVariable
+data IxedCategoricalVariable = IxedCategoricalVariable
+  { discreteVar :: CategoricalVariable
   , varIdx :: Int
   }

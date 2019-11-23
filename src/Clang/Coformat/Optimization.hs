@@ -30,7 +30,7 @@ import Text.Levenshteins
 data OptEnv = OptEnv
   { baseStyle :: T.Text
   , files :: [String]
-  , discreteVariables :: [IxedDiscreteVariable]
+  , discreteVariables :: [IxedCategoricalVariable]
   , constantOpts :: [ConfigItemT 'Value]
   }
 
@@ -67,7 +67,7 @@ chooseBaseStyle baseStyles files = do
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
 
-variateAt :: forall a. DiscreteVariate a
+variateAt :: forall a. CategoricalVariate a
           => Proxy a -> Int -> [ConfigItemT 'Value] -> [[ConfigItemT 'Value]]
 variateAt _ idx opts = [ update idx (updater v') opts | v' <- variated ]
   where
@@ -86,7 +86,7 @@ chooseBestOptVals :: (OptMonad r m, Has OptState r)
 chooseBestOptVals = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrently' discreteVariables $ \(IxedDiscreteVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
+  partialResults <- forConcurrently' discreteVariables $ \(IxedCategoricalVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
