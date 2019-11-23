@@ -59,7 +59,7 @@ doWork = do
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
-  let discreteVariables = [ IxedCategoricalVariable dv idx
+  let discreteVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
                           ]
   let optEnv = OptEnv { .. }

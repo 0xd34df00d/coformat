@@ -86,7 +86,7 @@ chooseBestOptVals :: (OptMonad r m, Has OptState r)
 chooseBestOptVals = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrently' discreteVariables $ \(IxedCategoricalVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
+  partialResults <- forConcurrently' discreteVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
