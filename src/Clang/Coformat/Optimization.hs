@@ -89,12 +89,12 @@ chooseBestCatVals = do
   OptState { .. } <- ask
   partialResults <- forConcurrently' categoricalVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
-    opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
+    opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
       sumScore <- runClangFormatFiles initialOptNormalizer opts' [i|Variate guess for #{optName}=#{optValue}|]
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
-    let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2dists
+    let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2scores
     logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore})|]
     pure $ if bestScore < currentScore
             then Just (bestOptVal, bestScore, idx)
