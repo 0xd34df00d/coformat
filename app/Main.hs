@@ -66,7 +66,9 @@ doWork = do
   res <- flip runReaderT optEnv $ runStateT stepGDCategorical optState
   liftIO $ print res
   where
-    constantOpts = [ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }]
+    constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
+                   , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
+                   ]
     constantOptsNames = name <$> constantOpts
 
 main :: IO ()
