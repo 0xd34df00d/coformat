@@ -30,7 +30,8 @@ import Text.Levenshteins
 data OptEnv = OptEnv
   { baseStyle :: T.Text
   , files :: [String]
-  , discreteVariables :: [IxedCategoricalVariable]
+  , categoricalVariables :: [IxedCategoricalVariable]
+  , integralVariables :: [IxedIntegralVariable]
   , constantOpts :: [ConfigItemT 'Value]
   }
 
@@ -81,12 +82,12 @@ data OptState = OptState
   , currentScore :: Score
   } deriving (Show)
 
-chooseBestOptVals :: (OptMonad r m, Has OptState r)
+chooseBestCatVals :: (OptMonad r m, Has OptState r)
                   => m [(ConfigTypeT 'Value, Score, Int)]
-chooseBestOptVals = do
+chooseBestCatVals = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrently' discreteVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
+  partialResults <- forConcurrently' categoricalVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2dists <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
@@ -105,7 +106,7 @@ stepGDCategorical = do
   current <- get
   when (currentScore current > 0) $ do
     env@OptEnv { .. } <- ask
-    results <- runReaderT chooseBestOptVals (current, env)
+    results <- runReaderT chooseBestCatVals (current, env)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
     sumScore <- runClangFormatFiles initialOptNormalizer nextOpts [i|Total score after optimization|]
     put OptState { currentOpts = nextOpts, currentScore = sumScore }
