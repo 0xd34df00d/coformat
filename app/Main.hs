@@ -18,6 +18,7 @@ import System.Command.QQ
 
 import Clang.Coformat.Optimization
 import Clang.Coformat.Util
+import Clang.Coformat.Variables
 import Clang.Format.Descr
 import Clang.Format.DescrParser
 import Clang.Format.YamlParser
