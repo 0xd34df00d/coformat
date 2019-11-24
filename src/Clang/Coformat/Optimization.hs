@@ -82,12 +82,12 @@ data OptState = OptState
   , currentScore :: Score
   } deriving (Show)
 
-chooseBestCatVals :: (OptMonad r m, Has OptState r)
-                  => m [(ConfigTypeT 'Value, Score, Int)]
-chooseBestCatVals = do
+chooseBestVals :: (OptMonad r m, Has OptState r, Foldable varTy)
+               => [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
+chooseBestVals ixedVariables = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrently' categoricalVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
+  partialResults <- forConcurrently' ixedVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
@@ -106,7 +106,7 @@ stepGDCategorical = do
   current <- get
   when (currentScore current > 0) $ do
     env@OptEnv { .. } <- ask
-    results <- runReaderT chooseBestCatVals (current, env)
+    results <- runReaderT (chooseBestVals categoricalVariables) (current, env)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
     sumScore <- runClangFormatFiles initialOptNormalizer nextOpts [i|Total score after optimization|]
     put OptState { currentOpts = nextOpts, currentScore = sumScore }
