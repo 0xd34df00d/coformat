@@ -121,3 +121,9 @@ stepGDNumericMid = stepGDGeneric initialOptNormalizer integralVariables
 
 stepGDNumericStart :: (OptMonad r m, MonadState OptState m) => m ()
 stepGDNumericStart = stepGDGeneric leaveStartSpaces integralVariables
+
+stepGD :: (OptMonad r m, MonadState OptState m) => m ()
+stepGD = do
+  stepGDCategorical
+  stepGDNumericMid
+  stepGDNumericStart
