@@ -37,9 +37,6 @@ data OptEnv = OptEnv
 
 newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
 
-initialOptNormalizer :: StringNormalizer
-initialOptNormalizer = blindTokens . dropStartSpaces
-
 runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
                => StringNormalizer -> String -> String -> BSL.ByteString -> m Score
 runClangFormat norm file logStr formattedSty = do
@@ -101,18 +98,23 @@ chooseBestVals ixedVariables = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGDmid :: (OptMonad r m, MonadState OptState m, Foldable varTy) => (OptEnv -> [IxedVariable varTy]) -> m ()
-stepGDmid accessor = do
+stepGDGeneric :: (OptMonad r m, MonadState OptState m, Foldable varTy)
+              => StringNormalizer -> (OptEnv -> [IxedVariable varTy]) -> m ()
+stepGDGeneric normalizer varGetter = do
   current <- get
   when (currentScore current > 0) $ do
     env@OptEnv { .. } <- ask
-    results <- runReaderT (chooseBestVals $ accessor env) (current, env)
+    results <- runReaderT (chooseBestVals $ varGetter env) (current, env)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
-    sumScore <- runClangFormatFiles initialOptNormalizer nextOpts [i|Total score after optimization|]
+    sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
+    logInfoN [i|Total score after optimization on all files: #{sumScore}|]
     put OptState { currentOpts = nextOpts, currentScore = sumScore }
 
+initialOptNormalizer :: StringNormalizer
+initialOptNormalizer = blindTokens . dropStartSpaces
+
 stepGDCategorical :: (OptMonad r m, MonadState OptState m) => m ()
-stepGDCategorical = stepGDmid categoricalVariables
+stepGDCategorical = stepGDGeneric initialOptNormalizer categoricalVariables
 
 stepGDNumericMid :: (OptMonad r m, MonadState OptState m) => m ()
-stepGDNumericMid = stepGDmid integralVariables
+stepGDNumericMid = stepGDGeneric initialOptNormalizer integralVariables
