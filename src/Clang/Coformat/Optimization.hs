@@ -131,3 +131,14 @@ stepGD = do
   stepGDNumericMid
   midScore <- gets currentScore
   when (startScore == midScore) stepGDNumericStart
+
+fixGD :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => Maybe Int -> m ()
+fixGD (Just 0) = pure ()
+fixGD counter = do
+  startScore <- gets currentScore
+  stepGD
+  endScore <- gets currentScore
+  logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
+  if startScore /= endScore
+    then fixGD $ subtract 1 <$> counter
+    else logInfoN [i|Done optimizing, stopped at score #{endScore}|]
