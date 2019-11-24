@@ -5,3 +5,5 @@ extra-deps:
 - can-i-haz-0.3.0.0
 - command-qq-0.3.0.0
 - dom-selector-0.2.0.1
+- github: jwiegley/async-pool
+  commit: 48faeb491a87ac3b6e6640bdb3b83cf5ec215072
