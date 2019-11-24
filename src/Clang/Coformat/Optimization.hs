@@ -124,6 +124,8 @@ stepGDNumericStart = stepGDGeneric leaveStartSpaces integralVariables
 
 stepGD :: (OptMonad r m, MonadState OptState m) => m ()
 stepGD = do
+  startScore <- gets currentScore
   stepGDCategorical
   stepGDNumericMid
-  stepGDNumericStart
+  midScore <- gets currentScore
+  when (startScore == midScore) stepGDNumericStart
