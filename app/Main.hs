@@ -7,6 +7,7 @@ module Main where
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TL
+import Control.Concurrent.Async.Pool
 import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Reader
@@ -14,6 +15,7 @@ import Control.Monad.State.Strict
 import Data.Bifunctor
 import Data.Foldable
 import Data.String.Interpolate.IsString
+import GHC.Conc
 import System.Command.QQ
 
 import Clang.Coformat.Optimization
@@ -50,8 +52,8 @@ newtype Options = Options
   { inputFiles :: [String]
   } deriving (Eq, Show)
 
-doWork :: (MonadError String m, MonadLoggerIO m) => m ()
-doWork = do
+doWork :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> m ()
+doWork tg = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
   let files = ["data/core.cpp", "data/core.h"]
@@ -67,7 +69,7 @@ doWork = do
                           ]
   let optEnv = OptEnv { .. }
   let optState = OptState { currentOpts = filledOptions, currentScore = baseScore }
-  res <- flip runReaderT optEnv $ runStateT stepGD optState
+  res <- flip runReaderT (optEnv, tg) $ runStateT stepGD optState
   liftIO $ print res
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
@@ -77,7 +79,8 @@ doWork = do
 
 main :: IO ()
 main = do
-  res <- runStderrLoggingT $ runExceptT doWork
+  capsCount <- getNumCapabilities
+  res <- withTaskGroup capsCount $ \tg -> runStderrLoggingT $ runExceptT $ doWork tg
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"

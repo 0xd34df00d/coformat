@@ -9,6 +9,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Control.Concurrent.Async.Pool
 import Control.Lens
 import Control.Monad.Except
 import Control.Monad.Logger
@@ -79,12 +80,12 @@ data OptState = OptState
   , currentScore :: Score
   } deriving (Show)
 
-chooseBestVals :: (OptMonad r m, Has OptState r, Foldable varTy)
+chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r, Foldable varTy)
                => [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
 chooseBestVals ixedVariables = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrently' ixedVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
+  partialResults <- forConcurrentlyPooled ixedVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
@@ -98,13 +99,14 @@ chooseBestVals ixedVariables = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGDGeneric :: (OptMonad r m, MonadState OptState m, Foldable varTy)
+stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m, Foldable varTy)
               => StringNormalizer -> (OptEnv -> [IxedVariable varTy]) -> m ()
 stepGDGeneric normalizer varGetter = do
   current <- get
   when (currentScore current > 0) $ do
     env@OptEnv { .. } <- ask
-    results <- runReaderT (chooseBestVals $ varGetter env) (current, env)
+    tg <- ask
+    results <- runReaderT (chooseBestVals $ varGetter env) (current, env, tg :: TaskGroup)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
     sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
     logInfoN [i|Total score after optimization on all files: #{sumScore}|]
@@ -113,16 +115,16 @@ stepGDGeneric normalizer varGetter = do
 initialOptNormalizer :: StringNormalizer
 initialOptNormalizer = blindTokens . dropStartSpaces
 
-stepGDCategorical :: (OptMonad r m, MonadState OptState m) => m ()
+stepGDCategorical :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGDCategorical = stepGDGeneric initialOptNormalizer categoricalVariables
 
-stepGDNumericMid :: (OptMonad r m, MonadState OptState m) => m ()
+stepGDNumericMid :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGDNumericMid = stepGDGeneric initialOptNormalizer integralVariables
 
-stepGDNumericStart :: (OptMonad r m, MonadState OptState m) => m ()
+stepGDNumericStart :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGDNumericStart = stepGDGeneric leaveStartSpaces integralVariables
 
-stepGD :: (OptMonad r m, MonadState OptState m) => m ()
+stepGD :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGD = do
   startScore <- gets currentScore
   stepGDCategorical
