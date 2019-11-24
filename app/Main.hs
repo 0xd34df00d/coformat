@@ -67,7 +67,7 @@ doWork = do
                           ]
   let optEnv = OptEnv { .. }
   let optState = OptState { currentOpts = filledOptions, currentScore = baseScore }
-  res <- flip runReaderT optEnv $ runStateT stepGDCategorical optState
+  res <- flip runReaderT optEnv $ runStateT stepGD optState
   liftIO $ print res
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
