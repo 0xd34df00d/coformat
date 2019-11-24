@@ -101,12 +101,18 @@ chooseBestVals ixedVariables = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGDCategorical :: (OptMonad r m, MonadState OptState m) => m ()
-stepGDCategorical = do
+stepGDmid :: (OptMonad r m, MonadState OptState m, Foldable varTy) => (OptEnv -> [IxedVariable varTy]) -> m ()
+stepGDmid accessor = do
   current <- get
   when (currentScore current > 0) $ do
     env@OptEnv { .. } <- ask
-    results <- runReaderT (chooseBestVals categoricalVariables) (current, env)
+    results <- runReaderT (chooseBestVals $ accessor env) (current, env)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
     sumScore <- runClangFormatFiles initialOptNormalizer nextOpts [i|Total score after optimization|]
     put OptState { currentOpts = nextOpts, currentScore = sumScore }
+
+stepGDCategorical :: (OptMonad r m, MonadState OptState m) => m ()
+stepGDCategorical = stepGDmid categoricalVariables
+
+stepGDNumericMid :: (OptMonad r m, MonadState OptState m) => m ()
+stepGDNumericMid = stepGDmid integralVariables
