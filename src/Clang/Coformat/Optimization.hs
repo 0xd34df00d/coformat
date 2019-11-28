@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, DerivingStrategies, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections #-}
 
@@ -16,7 +16,6 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
 import Data.Foldable
-import Data.Hashable
 import Data.List.Extra
 import Data.Maybe
 import Data.Ord
@@ -25,6 +24,7 @@ import Data.String.Interpolate.IsString
 import GHC.Generics
 import System.Command.QQ
 
+import Clang.Coformat.Score
 import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
@@ -38,9 +38,6 @@ data OptEnv = OptEnv
   , integralVariables :: [IxedIntegralVariable]
   , constantOpts :: [ConfigItemT 'Value]
   }
-
-newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show)
-                                          deriving newtype Num
 
 runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
                => StringNormalizer -> String -> String -> BSL.ByteString -> m Score
@@ -65,10 +62,12 @@ runClangFormatFiles norm varOpts logStr = do
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
-    (sty,) <$> runClangFormat initialOptNormalizer file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] })
+    (sty,) <$> runClangFormat initialNormalizer file [i|Initial guess for #{sty} at #{file}|] (formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] })
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
+  where
+    initialNormalizer = score2norm ScoreMid
 
 variateAt :: forall a. (Variate a, Foldable (VariateResult a))
           => Proxy a -> Int -> [ConfigItemT 'Value] -> [[ConfigItemT 'Value]]
@@ -79,26 +78,14 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- toList variated ]
     variated = variate $ typ (opts !! idx) ^?! thePrism
     updater v cfg = cfg { typ = typ cfg & thePrism .~ v }
 
-data ScoreType = ScoreMid | ScoreStart deriving (Eq, Ord, Show, Generic, Hashable, Enum, Bounded)
-
-score2norm :: ScoreType -> StringNormalizer
-score2norm ScoreMid = initialOptNormalizer
-score2norm ScoreStart = leaveStartSpaces
-
 data OptState = OptState
   { currentOpts :: [ConfigItemT 'Value]
-  , currentScores :: HM.HashMap ScoreType Score
-  } deriving (Show)
+  , currentScores :: ScoresMap
+  } deriving (Show, Generic, Has ScoresMap)
 
 initOptState :: [ConfigItemT 'Value] -> Score -> OptState
 initOptState currentOpts baseStyleScore = OptState { .. }
   where currentScores = HM.singleton ScoreMid baseStyleScore
-
-score :: ScoreType -> OptState -> Score
-score ty = (HM.! ty) . currentScores
-
-scoreM :: MonadState OptState m => ScoreType -> m Score
-scoreM ty = score ty <$> get
 
 fillAllScores :: (OptMonad r m, MonadState OptState m) => m ()
 fillAllScores = do
@@ -144,9 +131,6 @@ stepGDGeneric varGetter scoreType = do
     put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
   where
     normalizer = score2norm scoreType
-
-initialOptNormalizer :: StringNormalizer
-initialOptNormalizer = blindTokens . dropStartSpaces
 
 stepGDCategorical :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGDCategorical = stepGDGeneric categoricalVariables ScoreMid
