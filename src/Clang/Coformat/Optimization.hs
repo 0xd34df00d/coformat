@@ -111,15 +111,16 @@ fillAllScores = do
   mapM_ filler enumerate
 
 chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r, Foldable varTy)
-               => Score -> [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
-chooseBestVals baseScore ixedVariables = do
+               => ScoreType -> [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
+chooseBestVals scoreType ixedVariables = do
   env@OptEnv { .. } <- ask
-  OptState { .. } <- ask
+  st@OptState { .. } <- ask
+  let baseScore = score scoreType st
   partialResults <- forConcurrentlyPooled ixedVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
-      sumScore <- runClangFormatFiles initialOptNormalizer opts' [i|Variate guess for #{optName}=#{optValue}|]
+      sumScore <- runClangFormatFiles (score2norm scoreType) opts' [i|Variate guess for #{optName}=#{optValue}|]
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2scores
@@ -133,11 +134,10 @@ stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m, Foldable
               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
 stepGDGeneric varGetter scoreType = do
   current <- get
-  let curScore = score scoreType current
-  when (curScore > 0) $ do
+  when (score scoreType current > 0) $ do
     env@OptEnv { .. } <- ask
     tg <- ask
-    results <- runReaderT (chooseBestVals curScore $ varGetter env) (current, env, tg :: TaskGroup)
+    results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
     sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
     logInfoN [i|Total score after optimization on all files: #{sumScore}|]
