@@ -54,19 +54,25 @@ typToDV val = msum [ MkDV <$> val ^? varPrism @Bool
                    , MkDV <$> val ^? varPrism @([T.Text], T.Text)
                    ]
 
+searchSpace :: Show a => Integral a => a -> [a]
+searchSpace n = [ 2 ^ k | k <- [ 0 .. maxK ] ]
+  where
+    nBase = round $ logBase 2 $ fromIntegral n
+    maxK | n > 100 = nBase + 1
+         | otherwise = 2 * nBase
 
 instance Variate Int where
   type VariateResult Int = []
   type VariateType Int = 'Integral
-  variate n = [n - 1, n + 1]
+  variate n = n - 1 : n + 1 : searchSpace n <> map negate (searchSpace n)
   varPrism = prism' CTInt $ \case CTInt n -> Just n
                                   _ -> Nothing
 
 instance Variate Natural where
   type VariateResult Natural = []
   type VariateType Natural = 'Integral
-  variate n | n > 0 = [n - 1, n + 1]
-            | otherwise = [n + 1]
+  variate n | n > 0 = n - 1 : n + 1 : searchSpace n
+            | otherwise = n + 1 : searchSpace n
   varPrism = prism' CTUnsigned $ \case CTUnsigned n -> Just n
                                        _ -> Nothing
 
