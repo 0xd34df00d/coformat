@@ -29,7 +29,7 @@ dropStartSpaces :: StringNormalizer
 dropStartSpaces = unlines . map (dropWhile isSpace) . lines
 
 levenshteinDistanceWith :: StringNormalizer -> String -> String -> Int
-levenshteinDistanceWith f s1 s2 = levenshteinDistance defaultEditCosts  (f s1) (f s2)
+levenshteinDistanceWith f s1 s2 = levenshteinDistance defaultEditCosts (f s1) (f s2)
 
 leaveStartSpaces :: StringNormalizer
 leaveStartSpaces = unlines . map (takeWhile isSpace) . lines
