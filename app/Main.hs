@@ -70,7 +70,7 @@ runOptPipeline tg = do
                           | (Just dv, idx) <- zip (typToIV . typ <$> filledOptions) [0..]
                           ]
   let optEnv = OptEnv { .. }
-  let optState = OptState { currentOpts = filledOptions, currentScore = baseScore }
+  let optState = initOptState filledOptions baseScore
   finalOptState <- flip runReaderT (optEnv, tg) $ execStateT (fixGD $ Just 10) optState
   liftIO $ BS.putStrLn $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
   where

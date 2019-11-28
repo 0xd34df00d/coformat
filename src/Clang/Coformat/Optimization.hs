@@ -80,6 +80,9 @@ data OptState = OptState
   , currentScore :: Score
   } deriving (Show)
 
+initOptState :: [ConfigItemT 'Value] -> Score -> OptState
+initOptState currentOpts currentScore = OptState { .. }
+
 chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r, Foldable varTy)
                => [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
 chooseBestVals ixedVariables = do
