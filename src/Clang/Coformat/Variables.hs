@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs, TypeFamilies, DataKinds, TypeApplications, ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DeriveFoldable #-}
 
 module Clang.Coformat.Variables where
 
@@ -56,24 +55,18 @@ typToDV val = msum [ MkDV <$> val ^? varPrism @Bool
                    ]
 
 
-data IntegralVariateResult a
-  = None
-  | SingleDirection a
-  | TwoDirections a a
-  deriving (Eq, Show, Foldable)
-
 instance Variate Int where
-  type VariateResult Int = IntegralVariateResult
+  type VariateResult Int = []
   type VariateType Int = 'Integral
-  variate n = TwoDirections (n - 1) (n + 1)
+  variate n = [n - 1, n + 1]
   varPrism = prism' CTInt $ \case CTInt n -> Just n
                                   _ -> Nothing
 
 instance Variate Natural where
-  type VariateResult Natural = IntegralVariateResult
+  type VariateResult Natural = []
   type VariateType Natural = 'Integral
-  variate n | n > 0 = TwoDirections (n - 1) (n + 1)
-            | otherwise = SingleDirection (n + 1)
+  variate n | n > 0 = [n - 1, n + 1]
+            | otherwise = [n + 1]
   varPrism = prism' CTUnsigned $ \case CTUnsigned n -> Just n
                                        _ -> Nothing
 
