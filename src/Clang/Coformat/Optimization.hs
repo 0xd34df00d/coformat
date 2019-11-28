@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DerivingStrategies, DeriveAnyClass, DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections #-}
 
@@ -16,10 +16,13 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
 import Data.Foldable
+import Data.Hashable
+import Data.List.Extra
 import Data.Maybe
 import Data.Ord
 import Data.Proxy
 import Data.String.Interpolate.IsString
+import GHC.Generics
 import System.Command.QQ
 
 import Clang.Coformat.StyOpts
@@ -36,7 +39,8 @@ data OptEnv = OptEnv
   , constantOpts :: [ConfigItemT 'Value]
   }
 
-newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show, Num)
+newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show)
+                                          deriving newtype Num
 
 runClangFormat :: (MonadError String m, MonadIO m, MonadLogger m)
                => StringNormalizer -> String -> String -> BSL.ByteString -> m Score
@@ -75,17 +79,40 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- toList variated ]
     variated = variate $ typ (opts !! idx) ^?! thePrism
     updater v cfg = cfg { typ = typ cfg & thePrism .~ v }
 
+data ScoreType = ScoreMid | ScoreStart deriving (Eq, Ord, Show, Generic, Hashable, Enum, Bounded)
+
+score2norm :: ScoreType -> StringNormalizer
+score2norm ScoreMid = initialOptNormalizer
+score2norm ScoreStart = leaveStartSpaces
+
 data OptState = OptState
   { currentOpts :: [ConfigItemT 'Value]
-  , currentScore :: Score
+  , currentScores :: HM.HashMap ScoreType Score
   } deriving (Show)
 
 initOptState :: [ConfigItemT 'Value] -> Score -> OptState
-initOptState currentOpts currentScore = OptState { .. }
+initOptState currentOpts baseStyleScore = OptState { .. }
+  where currentScores = HM.singleton ScoreMid baseStyleScore
+
+score :: ScoreType -> OptState -> Score
+score ty = (HM.! ty) . currentScores
+
+scoreM :: MonadState OptState m => ScoreType -> m Score
+scoreM ty = score ty <$> get
+
+fillAllScores :: (OptMonad r m, MonadState OptState m) => m ()
+fillAllScores = do
+  opts <- gets currentOpts
+  presentTypes <- gets $ HM.keys . currentScores
+  let filler scoreType | scoreType `elem` presentTypes = pure ()
+                       | otherwise = do
+                          sumScore <- runClangFormatFiles (score2norm scoreType) opts [i| |]
+                          modify' $ \st -> st { currentScores = HM.insert scoreType sumScore $ currentScores st }
+  mapM_ filler enumerate
 
 chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r, Foldable varTy)
-               => [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
-chooseBestVals ixedVariables = do
+               => Score -> [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
+chooseBestVals baseScore ixedVariables = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
   partialResults <- forConcurrentlyPooled ixedVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
@@ -96,51 +123,55 @@ chooseBestVals ixedVariables = do
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2scores
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore})|]
-    pure $ if bestScore < currentScore
+    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{baseScore})|]
+    pure $ if bestScore < baseScore
             then Just (bestOptVal, bestScore, idx)
             else Nothing
   pure $ catMaybes partialResults
 
 stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m, Foldable varTy)
-              => StringNormalizer -> (OptEnv -> [IxedVariable varTy]) -> m ()
-stepGDGeneric normalizer varGetter = do
+              => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
+stepGDGeneric varGetter scoreType = do
   current <- get
-  when (currentScore current > 0) $ do
+  let curScore = score scoreType current
+  when (curScore > 0) $ do
     env@OptEnv { .. } <- ask
     tg <- ask
-    results <- runReaderT (chooseBestVals $ varGetter env) (current, env, tg :: TaskGroup)
+    results <- runReaderT (chooseBestVals curScore $ varGetter env) (current, env, tg :: TaskGroup)
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) (currentOpts current) results
     sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
     logInfoN [i|Total score after optimization on all files: #{sumScore}|]
-    put OptState { currentOpts = nextOpts, currentScore = sumScore }
+    put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
+  where
+    normalizer = score2norm scoreType
 
 initialOptNormalizer :: StringNormalizer
 initialOptNormalizer = blindTokens . dropStartSpaces
 
 stepGDCategorical :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDCategorical = stepGDGeneric initialOptNormalizer categoricalVariables
+stepGDCategorical = stepGDGeneric categoricalVariables ScoreMid
 
 stepGDNumericMid :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDNumericMid = stepGDGeneric initialOptNormalizer integralVariables
+stepGDNumericMid = stepGDGeneric integralVariables ScoreMid
 
 stepGDNumericStart :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDNumericStart = stepGDGeneric leaveStartSpaces integralVariables
+stepGDNumericStart = stepGDGeneric integralVariables ScoreStart
 
 stepGD :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGD = do
-  startScore <- gets currentScore
+  startScore <- scoreM ScoreMid
   stepGDCategorical
   stepGDNumericMid
-  midScore <- gets currentScore
+  midScore <- scoreM ScoreMid
   when (startScore == midScore) stepGDNumericStart
 
 fixGD :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => Maybe Int -> m ()
 fixGD (Just 0) = pure ()
 fixGD counter = do
-  startScore <- gets currentScore
+  fillAllScores
+  startScore <- gets currentScores
   stepGD
-  endScore <- gets currentScore
+  endScore <- gets currentScores
   logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
   if startScore /= endScore
     then fixGD $ subtract 1 <$> counter

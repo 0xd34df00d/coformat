@@ -28,6 +28,7 @@ dependencies:
 - edit-distance
 - either
 - extra
+- hashable
 - html-conduit
 - interpolate
 - lens
