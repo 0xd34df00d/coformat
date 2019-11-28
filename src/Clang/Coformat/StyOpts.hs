@@ -41,4 +41,4 @@ instance ToJSON StyOpts where
       toJson (CTEnum _ opt) = String opt
 
 formatStyArg :: StyOpts -> BSL.ByteString
-formatStyArg = encode . toJSON
+formatStyArg = encode
