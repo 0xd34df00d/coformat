@@ -6,6 +6,8 @@
 module Clang.Format.YamlConversions
 ( fillConfigItems
 , FillError
+
+, formatClangFormat
 ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -18,6 +20,7 @@ import Data.Yaml
 import GHC.Generics
 
 import Clang.Format.Descr
+import Clang.Coformat.StyOpts
 
 data FillError
   = YamlParseError ParseException
@@ -75,3 +78,6 @@ fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
       pure ConfigItem { name = name, typ = val }
       where
         nameConcatted = T.intercalate "." name
+
+formatClangFormat :: StyOpts -> BS.ByteString
+formatClangFormat = encode
