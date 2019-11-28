@@ -52,8 +52,8 @@ newtype Options = Options
   { inputFiles :: [String]
   } deriving (Eq, Show)
 
-doWork :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> m ()
-doWork tg = do
+runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> m ()
+runOptPipeline tg = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
   let files = ["data/core.cpp", "data/core.h"]
@@ -80,7 +80,7 @@ doWork tg = do
 main :: IO ()
 main = do
   capsCount <- getNumCapabilities
-  res <- withTaskGroup capsCount $ \tg -> runStderrLoggingT $ runExceptT $ doWork tg
+  res <- withTaskGroup capsCount $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"
