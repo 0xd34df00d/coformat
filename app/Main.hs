@@ -4,6 +4,7 @@
 
 module Main where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TL
@@ -19,6 +20,7 @@ import GHC.Conc
 import System.Command.QQ
 
 import Clang.Coformat.Optimization
+import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
@@ -69,8 +71,8 @@ runOptPipeline tg = do
                           ]
   let optEnv = OptEnv { .. }
   let optState = OptState { currentOpts = filledOptions, currentScore = baseScore }
-  res <- flip runReaderT (optEnv, tg) $ runStateT (fixGD $ Just 10) optState
-  liftIO $ print res
+  finalOptState <- flip runReaderT (optEnv, tg) $ execStateT (fixGD $ Just 10) optState
+  liftIO $ BS.putStrLn $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
                    , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
