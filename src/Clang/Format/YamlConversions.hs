@@ -17,6 +17,7 @@ import Control.Monad.Except.CoHas
 import Data.Either.Combinators
 import Data.Scientific
 import Data.Yaml
+import Data.Yaml.Pretty
 import GHC.Generics
 
 import Clang.Format.Descr
@@ -80,4 +81,4 @@ fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
         nameConcatted = T.intercalate "." name
 
 formatClangFormat :: StyOpts -> BS.ByteString
-formatClangFormat = encode
+formatClangFormat = encodePretty $ setConfCompare compare defConfig
