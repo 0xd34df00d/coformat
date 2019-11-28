@@ -82,7 +82,7 @@ runOptPipeline tg = do
 main :: IO ()
 main = do
   capsCount <- getNumCapabilities
-  res <- withTaskGroup capsCount $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg
+  res <- withTaskGroup (max 1 $ capsCount - 1) $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"
