@@ -97,7 +97,7 @@ fillAllScores = do
                           modify' $ \st -> st { currentScores = HM.insert scoreType sumScore $ currentScores st }
   mapM_ filler enumerate
 
-chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r, Foldable varTy)
+chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r)
                => ScoreType -> [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
 chooseBestVals scoreType ixedVariables = do
   env@OptEnv { .. } <- ask
@@ -117,7 +117,7 @@ chooseBestVals scoreType ixedVariables = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m, Foldable varTy)
+stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
 stepGDGeneric varGetter scoreType = do
   current <- get
