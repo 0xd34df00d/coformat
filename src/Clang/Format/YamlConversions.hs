@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
-module Clang.Format.YamlParser
+module Clang.Format.YamlConversions
 ( fillConfigItems
 , FillError
 ) where
