@@ -126,7 +126,7 @@ stepGDGeneric varGetter scoreType = do
     tg <- ask
     results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
     let curOpts = currentOpts current
-    forM_ results $ \(val, _, idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val}|]
+    forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
     sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
     logInfoN [i|Total score after optimization on all files: #{sumScore}|]
