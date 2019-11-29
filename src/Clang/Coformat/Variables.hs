@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, TypeFamilies, DataKinds, TypeApplications, ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-type-defaults #-}
 
 module Clang.Coformat.Variables where
 
