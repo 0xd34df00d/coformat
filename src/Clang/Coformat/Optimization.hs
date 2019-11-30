@@ -129,8 +129,15 @@ stepGDGeneric varGetter scoreType = do
     forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
     let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
     sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
-    logInfoN [i|Total score after optimization on all files: #{sumScore}|]
-    put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
+    let (bestVal, bestScore, bestIdx)  = minimumBy (comparing (^._2)) results
+    if sumScore <= bestScore
+      then do
+        logInfoN [i|Total score after optimization on all files: #{sumScore}|]
+        put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
+      else do
+        logWarnN [i|Greedy algorithm failed (got #{sumScore} while best individual is #{bestScore})|]
+        let nextOpts' = update bestIdx (\cfg -> cfg { typ = bestVal }) curOpts
+        put OptState { currentOpts = nextOpts', currentScores = HM.insert scoreType bestScore $ currentScores current }
   where
     normalizer = score2norm scoreType
 
