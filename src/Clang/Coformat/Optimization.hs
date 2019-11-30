@@ -122,6 +122,7 @@ chooseBestVals scoreType ixedVariables = do
 
 applyBestVals :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
               => ScoreType -> BestVals -> m ()
+applyBestVals _ [] = logInfoN [i|Nothing got better on this iteration|]
 applyBestVals scoreType results = do
   current <- get
   let curOpts = currentOpts current
