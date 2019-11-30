@@ -98,8 +98,10 @@ fillAllScores = do
                           modify' $ \st -> st { currentScores = HM.insert scoreType sumScore $ currentScores st }
   mapM_ filler enumerate
 
+type BestVals = [(ConfigTypeT 'Value, Score, Int)]
+
 chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r)
-               => ScoreType -> [IxedVariable varTy] -> m [(ConfigTypeT 'Value, Score, Int)]
+               => ScoreType -> [IxedVariable varTy] -> m BestVals
 chooseBestVals scoreType ixedVariables = do
   env@OptEnv { .. } <- ask
   st@OptState { .. } <- ask
@@ -118,13 +120,10 @@ chooseBestVals scoreType ixedVariables = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGDGeneric' :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
-               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
-stepGDGeneric' varGetter scoreType = do
+applyBestVals :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
+              => ScoreType -> BestVals -> m ()
+applyBestVals scoreType results = do
   current <- get
-  env@OptEnv { .. } <- ask
-  tg <- ask
-  results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
   let curOpts = currentOpts current
   forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
   let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
@@ -140,6 +139,15 @@ stepGDGeneric' varGetter scoreType = do
       put OptState { currentOpts = nextOpts', currentScores = HM.insert scoreType bestScore $ currentScores current }
   where
     normalizer = score2norm scoreType
+
+stepGDGeneric' :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
+               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
+stepGDGeneric' varGetter scoreType = do
+  current <- get
+  env@OptEnv { .. } <- ask
+  tg <- ask
+  results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
+  applyBestVals scoreType results
 
 stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
