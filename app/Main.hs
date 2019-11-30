@@ -76,6 +76,7 @@ runOptPipeline tg = do
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
                    , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
+                   , ConfigItem { name = ["DisableFormat"], typ = CTBool False }
                    ]
     constantOptsNames = name <$> constantOpts
 
