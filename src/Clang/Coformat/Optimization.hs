@@ -12,6 +12,7 @@ import qualified Data.Text.Lazy as TL
 import Control.Concurrent.Async.Pool
 import Control.Lens
 import Control.Monad.Except
+import Control.Monad.Extra
 import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
@@ -117,29 +118,32 @@ chooseBestVals scoreType ixedVariables = do
             else Nothing
   pure $ catMaybes partialResults
 
-stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
-              => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
-stepGDGeneric varGetter scoreType = do
+stepGDGeneric' :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
+               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
+stepGDGeneric' varGetter scoreType = do
   current <- get
-  when (score scoreType current > 0) $ do
-    env@OptEnv { .. } <- ask
-    tg <- ask
-    results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
-    let curOpts = currentOpts current
-    forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
-    let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
-    sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
-    let (bestVal, bestScore, bestIdx)  = minimumBy (comparing (^._2)) results
-    if sumScore <= bestScore
-      then do
-        logInfoN [i|Total score after optimization on all files: #{sumScore}|]
-        put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
-      else do
-        logWarnN [i|Greedy algorithm failed (got #{sumScore} while best individual is #{bestScore})|]
-        let nextOpts' = update bestIdx (\cfg -> cfg { typ = bestVal }) curOpts
-        put OptState { currentOpts = nextOpts', currentScores = HM.insert scoreType bestScore $ currentScores current }
+  env@OptEnv { .. } <- ask
+  tg <- ask
+  results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
+  let curOpts = currentOpts current
+  forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
+  let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
+  sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
+  let (bestVal, bestScore, bestIdx)  = minimumBy (comparing (^._2)) results
+  if sumScore <= bestScore
+    then do
+      logInfoN [i|Total score after optimization on all files: #{sumScore}|]
+      put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
+    else do
+      logWarnN [i|Greedy algorithm failed (got #{sumScore} while best individual is #{bestScore})|]
+      let nextOpts' = update bestIdx (\cfg -> cfg { typ = bestVal }) curOpts
+      put OptState { currentOpts = nextOpts', currentScores = HM.insert scoreType bestScore $ currentScores current }
   where
     normalizer = score2norm scoreType
+
+stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
+              => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
+stepGDGeneric varGetter scoreType = whenM ((> 0) <$> scoreM scoreType) $ stepGDGeneric' varGetter scoreType
 
 stepGDCategorical :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGDCategorical = stepGDGeneric categoricalVariables ScoreMid
