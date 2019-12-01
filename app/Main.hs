@@ -37,7 +37,7 @@ liftEither' context = liftEither . first ((context <>) . show)
 
 convert :: MonadError e' m
         => (e -> e')
-        -> (forall m'. MonadError e m' => m' a)
+        -> ExceptT e m a
         -> m a
 convert cvt act = runExceptT act >>= (liftEither . first cvt)
 
