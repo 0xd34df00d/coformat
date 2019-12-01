@@ -20,6 +20,7 @@ import Data.Foldable
 import Data.String.Interpolate.IsString
 import GHC.Conc
 import GHC.Generics
+import Numeric.Natural
 import Options.Generic
 import System.Command.QQ
 
@@ -54,8 +55,9 @@ parseOptsDescription path = do
   where
     bosKey = ["BasedOnStyle"]
 
-newtype Options w = Options
+data Options w = Options
   { input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
+  , parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
   } deriving (Generic)
 
 instance ParseRecord (Options Wrapped)
@@ -88,8 +90,10 @@ runOptPipeline tg files = do
 main :: IO ()
 main = do
   Options { .. } <- unwrapRecord "coformat"
-  capsCount <- getNumCapabilities
-  res <- withTaskGroup (max 1 $ capsCount - 1) $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg $ toList input
+  tgSize <- case parallelism of
+                 Just n -> pure $ fromIntegral n
+                 Nothing -> (\n -> max 1 $ n - 1) <$> getNumCapabilities
+  res <- withTaskGroup tgSize $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg $ toList input
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"
