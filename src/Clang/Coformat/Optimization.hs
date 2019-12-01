@@ -129,7 +129,7 @@ applyBestVals scoreType results = do
   forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
   let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
   sumScore <- runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
-  let (bestVal, bestScore, bestIdx)  = minimumBy (comparing (^._2)) results
+  let (bestVal, bestScore, bestIdx) = minimumBy (comparing (^._2)) results
   if sumScore <= bestScore
     then do
       logInfoN [i|Total score after optimization on all files: #{sumScore}|]
