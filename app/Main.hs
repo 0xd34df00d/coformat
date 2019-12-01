@@ -1,11 +1,13 @@
-{-# LANGUAGE FlexibleContexts, TypeApplications #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, TypeApplications, TypeOperators #-}
 {-# LANGUAGE DataKinds, RankNTypes, GADTs #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards, QuasiQuotes #-}
 
 module Main where
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
+import qualified Data.List.NonEmpty as N
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TL
 import Control.Concurrent.Async.Pool
@@ -17,6 +19,8 @@ import Data.Bifunctor
 import Data.Foldable
 import Data.String.Interpolate.IsString
 import GHC.Conc
+import GHC.Generics
+import Options.Generic
 import System.Command.QQ
 
 import Clang.Coformat.Optimization
@@ -50,15 +54,16 @@ parseOptsDescription path = do
   where
     bosKey = ["BasedOnStyle"]
 
-newtype Options = Options
-  { inputFiles :: [String]
-  } deriving (Eq, Show)
+newtype Options w = Options
+  { input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
+  } deriving (Generic)
 
-runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> m ()
-runOptPipeline tg = do
+instance ParseRecord (Options Wrapped)
+
+runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> [FilePath] -> m ()
+runOptPipeline tg files = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
-  let files = ["data/core.cpp", "data/core.h"]
   (baseStyle, baseScore) <- chooseBaseStyle baseStyles files
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
@@ -82,8 +87,9 @@ runOptPipeline tg = do
 
 main :: IO ()
 main = do
+  Options { .. } <- unwrapRecord "coformat"
   capsCount <- getNumCapabilities
-  res <- withTaskGroup (max 1 $ capsCount - 1) $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg
+  res <- withTaskGroup (max 1 $ capsCount - 1) $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg $ toList input
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"

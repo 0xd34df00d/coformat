@@ -35,6 +35,7 @@ dependencies:
 - lens-aeson
 - monad-logger
 - mtl
+- optparse-generic
 - scientific
 - temporary
 - text
