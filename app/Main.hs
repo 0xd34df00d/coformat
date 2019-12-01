@@ -35,8 +35,8 @@ import Clang.Format.YamlConversions
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)
 
-convert :: MonadError String m
-        => (e -> String)
+convert :: MonadError e' m
+        => (e -> e')
         -> (forall m'. MonadError e m' => m' a)
         -> m a
 convert cvt act = runExceptT act >>= (liftEither . first cvt)
