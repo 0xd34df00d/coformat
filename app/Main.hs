@@ -23,6 +23,8 @@ import GHC.Generics
 import Numeric.Natural
 import Options.Generic
 import System.Command.QQ
+import System.IO(IOMode(..), Handle, stderr, withFile)
+import System.Log.FastLogger
 
 import Clang.Coformat.Optimization
 import Clang.Coformat.StyOpts
@@ -58,6 +60,7 @@ parseOptsDescription path = do
 data Options w = Options
   { input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
   , parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
+  , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
   } deriving (Generic)
 
 instance ParseRecord (Options Wrapped)
@@ -87,13 +90,29 @@ runOptPipeline tg files = do
                    ]
     constantOptsNames = name <$> constantOpts
 
+logOutput :: Maybe Handle
+          -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
+logOutput debugHandle loc src level msg
+  | level == LevelDebug = case debugHandle of Nothing -> pure ()
+                                              Just handle -> BS.hPutStr handle str
+  | otherwise = BS.hPutStr stderr str
+  where
+    str = fromLogStr $ defaultLogStr loc src level msg
+
 main :: IO ()
 main = do
   Options { .. } <- unwrapRecord "coformat"
+
   tgSize <- case parallelism of
                  Just n -> pure $ fromIntegral n
                  Nothing -> (\n -> max 1 $ n - 1) <$> getNumCapabilities
-  res <- withTaskGroup tgSize $ \tg -> runStderrLoggingT $ runExceptT $ runOptPipeline tg $ toList input
+
+  let withDebugLog | Just path <- debugLog = \f -> withFile path AppendMode $ f . Just
+                   | otherwise = ($ Nothing)
+
+  res <- withDebugLog $ \maybeLogHandle ->
+         withTaskGroup tgSize $ \tg ->
+         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline tg $ toList input
   case res of
        Left err -> putStrLn err
        Right () -> putStrLn "done"
