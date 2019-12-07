@@ -28,6 +28,7 @@ dependencies:
 - edit-distance
 - either
 - extra
+- fast-logger
 - hashable
 - html-conduit
 - interpolate
