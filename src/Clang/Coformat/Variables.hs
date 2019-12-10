@@ -8,6 +8,7 @@ module Clang.Coformat.Variables where
 import qualified Data.Text as T
 import Control.Lens
 import Control.Monad
+import Data.Kind
 import Numeric.Natural
 
 import Clang.Format.Descr
@@ -15,7 +16,7 @@ import Clang.Format.Descr
 data KnownVariateType = Categorical | Integral
 
 class Variate a where
-  type VariateResult a :: * -> *
+  type VariateResult a :: Type -> Type
   type VariateType a :: KnownVariateType
   variate :: a -> VariateResult a a
   varPrism :: Prism' (ConfigTypeT 'Value) a
