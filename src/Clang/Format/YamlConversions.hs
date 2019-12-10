@@ -75,6 +75,8 @@ fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
                   (CTBool _, Bool b) -> pure $ CTBool b
                   (CTEnum vars _, String s)
                       | s `elem` vars -> pure $ CTEnum vars s
+                  (CTEnum vars _, Bool b)
+                      | boolAsEnumVar b `elem` vars -> pure $ CTEnum vars $ boolAsEnumVar b
                   _ -> throwError $ IncompatibleValue nameConcatted typ yamlVal
       pure ConfigItem { name = name, typ = val }
       where
@@ -82,3 +84,7 @@ fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
 
 formatClangFormat :: StyOpts -> BS.ByteString
 formatClangFormat = encodePretty $ setConfCompare compare defConfig
+
+boolAsEnumVar :: Bool -> T.Text
+boolAsEnumVar True = "Yes"
+boolAsEnumVar False = "No"
