@@ -61,11 +61,12 @@ data Options w = Options
   { input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
   , parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
   , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
+  , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   } deriving (Generic)
 
 instance ParseRecord (Options Wrapped)
 
-runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> [FilePath] -> m ()
+runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> [FilePath] -> m BS.ByteString
 runOptPipeline tg files = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
@@ -82,7 +83,7 @@ runOptPipeline tg files = do
   let optEnv = OptEnv { .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- flip runReaderT (optEnv, tg) $ execStateT (fixGD $ Just 10) optState
-  liftIO $ BS.putStrLn $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
+  pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
                    , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
@@ -115,4 +116,4 @@ main = do
          (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline tg $ toList input
   case res of
        Left err -> putStrLn err
-       Right () -> putStrLn "done"
+       Right bs -> BS.writeFile output bs
