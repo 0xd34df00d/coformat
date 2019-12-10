@@ -12,7 +12,7 @@ import GHC.Generics
 import Text.Levenshteins
 
 newtype Score = Score { getScore :: Int } deriving (Eq, Ord, Show)
-                                          deriving newtype Num
+                                          deriving newtype (Num, Bounded)
 
 data ScoreType = ScoreMid | ScoreStart deriving (Eq, Ord, Show, Generic, Hashable, Enum, Bounded)
 
