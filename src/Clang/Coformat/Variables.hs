@@ -86,3 +86,9 @@ typToIV :: ConfigTypeT 'Value -> Maybe IntegralVariable
 typToIV val = msum [ MkDV <$> val ^? varPrism @Int
                    , MkDV <$> val ^? varPrism @Natural
                    ]
+
+data SomeIxedVariable :: Type where
+  SomeIxedVariable :: IxedVariable varTy -> SomeIxedVariable
+
+asSome :: [IxedVariable varTy] -> [SomeIxedVariable]
+asSome = fmap SomeIxedVariable
