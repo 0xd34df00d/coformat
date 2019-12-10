@@ -101,12 +101,12 @@ fillAllScores = do
 type BestVals = [(ConfigTypeT 'Value, Score, Int)]
 
 chooseBestVals :: (OptMonad r m, Has OptState r, Has TaskGroup r)
-               => ScoreType -> [IxedVariable varTy] -> m BestVals
+               => ScoreType -> [SomeIxedVariable] -> m BestVals
 chooseBestVals scoreType ixedVariables = do
   env@OptEnv { .. } <- ask
   st@OptState { .. } <- ask
   let baseScore = score scoreType st
-  partialResults <- forConcurrentlyPooled ixedVariables $ \(IxedVariable (MkDV (_ :: a)) idx) -> flip runReaderT env $ do
+  partialResults <- forConcurrentlyPooled ixedVariables $ \(SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx)) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
@@ -142,26 +142,26 @@ applyBestVals scoreType results = do
     normalizer = score2norm scoreType
 
 stepGDGeneric' :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
-               => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
-stepGDGeneric' varGetter scoreType = do
+               => [OptEnv -> [SomeIxedVariable]] -> ScoreType -> m ()
+stepGDGeneric' varGetters scoreType = do
   current <- get
   env@OptEnv { .. } <- ask
   tg <- ask
-  results <- runReaderT (chooseBestVals scoreType $ varGetter env) (current, env, tg :: TaskGroup)
+  results <- runReaderT (chooseBestVals scoreType $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup)
   applyBestVals scoreType results
 
 stepGDGeneric :: (OptMonad r m, Has TaskGroup r, MonadState OptState m)
-              => (OptEnv -> [IxedVariable varTy]) -> ScoreType -> m ()
-stepGDGeneric varGetter scoreType = whenM ((> 0) <$> scoreM scoreType) $ stepGDGeneric' varGetter scoreType
+              => [OptEnv -> [SomeIxedVariable]] -> ScoreType -> m ()
+stepGDGeneric varGetters scoreType = whenM ((> 0) <$> scoreM scoreType) $ stepGDGeneric' varGetters scoreType
 
 stepGDCategorical :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDCategorical = stepGDGeneric categoricalVariables ScoreMid
+stepGDCategorical = stepGDGeneric [asSome . categoricalVariables] ScoreMid
 
 stepGDNumericMid :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDNumericMid = stepGDGeneric integralVariables ScoreMid
+stepGDNumericMid = stepGDGeneric [asSome . integralVariables] ScoreMid
 
 stepGDNumericStart :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDNumericStart = stepGDGeneric integralVariables ScoreStart
+stepGDNumericStart = stepGDGeneric [asSome . integralVariables] ScoreStart
 
 stepGD :: (OptMonad r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGD = do
