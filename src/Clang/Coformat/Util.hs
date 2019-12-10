@@ -5,10 +5,12 @@ module Clang.Coformat.Util where
 
 import qualified Control.Concurrent.Async as A
 import qualified Control.Concurrent.Async.Pool as A.P
+import qualified Control.Monad.Except as E
 import qualified Data.Text.Lazy as TL
 import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Reader.Has
+import Data.Bifunctor
 import Data.String.Interpolate.IsString
 import System.Exit
 
@@ -40,3 +42,9 @@ forConcurrentlyPooled lst act = do
   tg <- ask
   result <- liftIO $ flip (A.P.mapConcurrently tg) lst $ \elt -> flip runLoggingT logger $ runExceptT $ act elt
   liftEither $ sequence result
+
+convert :: MonadError e' m
+        => (e -> e')
+        -> ExceptT e m a
+        -> m a
+convert cvt act = runExceptT act >>= (E.liftEither . first cvt)

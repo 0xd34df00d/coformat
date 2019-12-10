@@ -37,12 +37,6 @@ import Clang.Format.YamlConversions
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)
 
-convert :: MonadError e' m
-        => (e -> e')
-        -> ExceptT e m a
-        -> m a
-convert cvt act = runExceptT act >>= (liftEither . first cvt)
-
 parseOptsDescription :: (MonadError String m, MonadIO m) => FilePath -> m ([T.Text], [ConfigItemT 'Supported])
 parseOptsDescription path = do
   parseResult <- liftIO $ parseFile path
