@@ -5,7 +5,6 @@
 
 module Clang.Coformat.Optimization where
 
-import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
@@ -32,21 +31,21 @@ import Clang.Format.Descr
 
 data OptEnv = OptEnv
   { baseStyle :: T.Text
-  , files :: [String]
+  , preparedFiles :: [PreparedFile]
   , categoricalVariables :: [IxedCategoricalVariable]
   , integralVariables :: [IxedIntegralVariable]
   , constantOpts :: [ConfigItemT 'Value]
   }
 
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
-               => String -> String -> BSL.ByteString -> m Score
-runClangFormat file logStr formattedSty = do
-  stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{file}|]
-  source <- liftIO $ BS.readFile file
-  let dist = calcScore source $ BSL.toStrict $ TL.encodeUtf8 stdout
+               => PreparedFile -> String -> BSL.ByteString -> m Score
+runClangFormat prepared logStr formattedSty = do
+  stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{path}|]
+  let dist = calcScore prepared $ BSL.toStrict $ TL.encodeUtf8 stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure dist
   where
+    path = filename prepared
     unpackedSty = BSL.unpack formattedSty
 
 type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has OptEnv r)
@@ -57,13 +56,13 @@ runClangFormatFiles varOpts logStr = do
   OptEnv { .. } <- ask
   let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
   let formattedSty = formatStyArg sty
-  fmap mconcat $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
+  fmap mconcat $ forM preparedFiles $ \prepared -> runClangFormat prepared [i|#{logStr} at #{filename prepared}|] formattedSty
 
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [PreparedFile] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
     let formattedArg = formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] }
-    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] formattedArg
+    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{filename file}|] formattedArg
   let accumulated = HM.toList $ HM.fromListWith (<>) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated

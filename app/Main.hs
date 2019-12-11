@@ -27,6 +27,7 @@ import System.IO(IOMode(..), Handle, stderr, withFile)
 import System.Log.FastLogger
 
 import Clang.Coformat.Optimization
+import Clang.Coformat.Score
 import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
@@ -62,9 +63,10 @@ instance ParseRecord (Options Wrapped)
 
 runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> [FilePath] -> m BS.ByteString
 runOptPipeline tg files = do
+  preparedFiles <- mapM prepareFile files
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
-  (baseStyle, baseScore) <- chooseBaseStyle baseStyles files
+  (baseStyle, baseScore) <- chooseBaseStyle baseStyles preparedFiles
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
