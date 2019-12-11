@@ -41,12 +41,13 @@ data OptEnv = OptEnv
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
                => String -> String -> BSL.ByteString -> m Score
 runClangFormat file logStr formattedSty = do
-  let unpackedSty = BSL.unpack formattedSty
   stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{file}|]
   source <- liftIO $ BS.readFile file
   let dist = calcScore source $ BSL.toStrict $ TL.encodeUtf8 stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure dist
+  where
+    unpackedSty = BSL.unpack formattedSty
 
 type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has OptEnv r)
 
