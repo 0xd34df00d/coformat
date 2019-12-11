@@ -25,7 +25,6 @@ dependencies:
 - command-qq
 - containers
 - dom-selector
-- edit-distance
 - either
 - extra
 - fast-logger
