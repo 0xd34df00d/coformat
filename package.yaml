@@ -29,6 +29,7 @@ dependencies:
 - either
 - extra
 - fast-logger
+- generic-data
 - hashable
 - html-conduit
 - interpolate
