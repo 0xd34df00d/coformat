@@ -15,7 +15,6 @@ import Generic.Data
 
 data Score = Score
   { meaningfulLettersCountsDiff :: Sum Int
-  , spacesCountsDiff :: Sum Int
   , spacesMisalignment :: Sum Int
   } deriving (Eq, Ord, Show, Bounded, Generic)
     deriving (Semigroup, Monoid) via (Generically Score)
@@ -23,17 +22,16 @@ data Score = Score
 calcScore :: BS.ByteString -> BS.ByteString -> Score
 calcScore s1 s2 = Score { .. }
   where
-    meaningfulLettersCountsDiff = Sum $ calcLettersDiff (not . isSpace) s1 s2
-    spacesCountsDiff = Sum $ calcLettersDiff (const True) s1 s2
+    meaningfulLettersCountsDiff = Sum $ calcLettersDiff s1 s2
     spacesMisalignment | meaningfulLettersCountsDiff /= 0 = 0
                        | otherwise = Sum $ alignSpaces s1 s2
 
-calcLettersDiff :: (Char -> Bool) -> BS.ByteString -> BS.ByteString -> Int
-calcLettersDiff flt s1 s2 = sum $ HM.elems $ HM.unionWith (\v1 v2 -> abs $ v1 - v2) s1counters s2counters
+calcLettersDiff :: BS.ByteString -> BS.ByteString -> Int
+calcLettersDiff s1 s2 = sum $ HM.elems $ HM.unionWith (\v1 v2 -> abs $ v1 - v2) s1counters s2counters
   where
     calcLetters = BS.foldl' ins mempty
-    ins hm ch | flt ch = HM.insertWith (+) ch 1 hm
-              | otherwise = hm
+    ins hm ch | isSpace ch = hm
+              | otherwise = HM.insertWith (+) ch 1 hm
     s1counters = calcLetters s1
     s2counters = calcLetters s2
 
