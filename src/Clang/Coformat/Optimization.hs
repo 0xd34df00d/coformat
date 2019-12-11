@@ -17,12 +17,10 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
 import Data.Foldable
-import Data.List.Extra
 import Data.Maybe
 import Data.Ord
 import Data.Proxy
 import Data.String.Interpolate.IsString
-import GHC.Generics
 import System.Command.QQ
 
 import Clang.Coformat.Score
@@ -30,7 +28,7 @@ import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
-import Text.Levenshteins
+import Text.EditDistance
 
 data OptEnv = OptEnv
   { baseStyle :: T.Text
@@ -41,35 +39,33 @@ data OptEnv = OptEnv
   }
 
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
-               => StringNormalizer -> String -> String -> BSL.ByteString -> m Score
-runClangFormat norm file logStr formattedSty = do
+               => String -> String -> BSL.ByteString -> m Score
+runClangFormat file logStr formattedSty = do
   let unpackedSty = BSL.unpack formattedSty
   stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{file}|]
   source <- liftIO $ readFile file
-  let dist = levenshteinDistanceWith norm source $ TL.unpack stdout
+  let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure $ Score dist
 
 type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has OptEnv r)
 
 runClangFormatFiles :: (OptMonad err r m, CoHas ExpectedFailure err)
-                    => StringNormalizer -> [ConfigItemT 'Value] -> String -> m Score
-runClangFormatFiles norm varOpts logStr = do
+                    => [ConfigItemT 'Value] -> String -> m Score
+runClangFormatFiles varOpts logStr = do
   OptEnv { .. } <- ask
   let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
   let formattedSty = formatStyArg sty
-  fmap sum $ forM files $ \file -> runClangFormat norm file [i|#{logStr} at #{file}|] formattedSty
+  fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
     let formattedArg = formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] }
-    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat initialNormalizer file [i|Initial guess for #{sty} at #{file}|] formattedArg
+    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] formattedArg
   let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
-  where
-    initialNormalizer = score2norm ScoreMid
 
 variateAt :: forall a. (Variate a, Foldable (VariateResult a))
           => Proxy a -> Int -> [ConfigItemT 'Value] -> [[ConfigItemT 'Value]]
@@ -82,22 +78,11 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- toList variated ]
 
 data OptState = OptState
   { currentOpts :: [ConfigItemT 'Value]
-  , currentScores :: ScoresMap
-  } deriving (Show, Generic, Has ScoresMap)
+  , currentScore :: Score
+  } deriving (Show)
 
 initOptState :: [ConfigItemT 'Value] -> Score -> OptState
-initOptState currentOpts baseStyleScore = OptState { .. }
-  where currentScores = HM.singleton ScoreMid baseStyleScore
-
-fillAllScores :: (OptMonad err r m, MonadState OptState m, err ~ UnexpectedFailure) => m ()
-fillAllScores = do
-  opts <- gets currentOpts
-  presentTypes <- gets $ HM.keys . currentScores
-  let filler scoreType | scoreType `elem` presentTypes = pure ()
-                       | otherwise = do
-                          sumScore <- convert failuresAreUnexpected $ runClangFormatFiles (score2norm scoreType) opts [i| |]
-                          modify' $ \st -> st { currentScores = HM.insert scoreType sumScore $ currentScores st }
-  mapM_ filler enumerate
+initOptState currentOpts currentScore = OptState { .. }
 
 dropExpectedFailures :: OptMonad err r m
                      => (forall err' r' m'. (OptMonad err' r' m', CoHas ExpectedFailure err') => m' Score)
@@ -114,83 +99,65 @@ dropExpectedFailures act = do
 type BestVals = [(ConfigTypeT 'Value, Score, Int)]
 
 chooseBestVals :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
-               => ScoreType -> [SomeIxedVariable] -> m BestVals
-chooseBestVals scoreType ixedVariables = do
+               => [SomeIxedVariable] -> m BestVals
+chooseBestVals ixedVariables = do
   env@OptEnv { .. } <- ask
-  st@OptState { .. } <- ask
-  let baseScore = score scoreType st
+  OptState { .. } <- ask
   partialResults <- forConcurrentlyPooled ixedVariables $ \(SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx)) -> flip runReaderT env $ do
     let optName = name $ currentOpts !! idx
     opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
-      sumScore <- dropExpectedFailures $ runClangFormatFiles (score2norm scoreType) opts' [i|Variate guess for #{optName}=#{optValue}|]
+      sumScore <- dropExpectedFailures $ runClangFormatFiles opts' [i|Variate guess for #{optName}=#{optValue}|]
       logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
       pure (optValue, sumScore)
     let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2scores
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{baseScore})|]
-    pure $ if bestScore < baseScore
+    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore})|]
+    pure $ if bestScore < currentScore
             then Just (bestOptVal, bestScore, idx)
             else Nothing
   pure $ catMaybes partialResults
 
 applyBestVals :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-              => ScoreType -> BestVals -> m ()
-applyBestVals _ [] = logInfoN [i|Nothing got better on this iteration|]
-applyBestVals scoreType results = do
+              => BestVals -> m ()
+applyBestVals [] = logInfoN [i|Nothing got better on this iteration|]
+applyBestVals results = do
   current <- get
   let curOpts = currentOpts current
-  forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{score scoreType current} -> #{score'})|]
+  forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{currentScore current} -> #{score'})|]
   let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
-  sumScore <- dropExpectedFailures $ runClangFormatFiles normalizer nextOpts [i|Total score after optimization|]
+  sumScore <- dropExpectedFailures $ runClangFormatFiles nextOpts [i|Total score after optimization|]
   let (bestVal, bestScore, bestIdx) = minimumBy (comparing (^._2)) results
   if sumScore <= bestScore
     then do
       logInfoN [i|Total score after optimization on all files: #{sumScore}|]
-      put OptState { currentOpts = nextOpts, currentScores = HM.insert scoreType sumScore $ currentScores current }
+      put OptState { currentOpts = nextOpts, currentScore = sumScore }
     else do
       logWarnN [i|Greedy algorithm failed (got #{sumScore} while best individual is #{bestScore})|]
       let nextOpts' = update bestIdx (\cfg -> cfg { typ = bestVal }) curOpts
-      put OptState { currentOpts = nextOpts', currentScores = HM.insert scoreType bestScore $ currentScores current }
-  where
-    normalizer = score2norm scoreType
+      put OptState { currentOpts = nextOpts', currentScore = bestScore }
 
 stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-               => [OptEnv -> [SomeIxedVariable]] -> ScoreType -> m ()
-stepGDGeneric' varGetters scoreType = do
+               => [OptEnv -> [SomeIxedVariable]] -> m ()
+stepGDGeneric' varGetters = do
   current <- get
   env@OptEnv { .. } <- ask
   tg <- ask
-  results <- runReaderT (chooseBestVals scoreType $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup)
-  applyBestVals scoreType results
+  results <- runReaderT (chooseBestVals $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup)
+  applyBestVals results
 
 stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-              => [OptEnv -> [SomeIxedVariable]] -> ScoreType -> m ()
-stepGDGeneric varGetters scoreType = whenM ((> 0) <$> scoreM scoreType) $ stepGDGeneric' varGetters scoreType
-
-stepGDCategorical :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDCategorical = stepGDGeneric [asSome . categoricalVariables] ScoreMid
-
-stepGDNumericMid :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDNumericMid = stepGDGeneric [asSome . integralVariables] ScoreMid
-
-stepGDNumericStart :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGDNumericStart = stepGDGeneric [asSome . integralVariables] ScoreStart
+              => [OptEnv -> [SomeIxedVariable]] -> m ()
+stepGDGeneric varGetters = whenM ((> 0) <$> gets currentScore) $ stepGDGeneric' varGetters
 
 stepGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGD = do
-  startScore <- scoreM ScoreMid
-  stepGDCategorical
-  stepGDNumericMid
-  midScore <- scoreM ScoreMid
-  when (startScore == midScore) stepGDNumericStart
+stepGD = stepGDGeneric [asSome . categoricalVariables, asSome . integralVariables]
 
 fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> m ()
 fixGD (Just 0) = pure ()
 fixGD counter = do
-  fillAllScores
-  startScore <- gets currentScores
+  startScore <- gets currentScore
   stepGD
-  endScore <- gets currentScores
+  endScore <- gets currentScore
   logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
   if startScore /= endScore
     then fixGD $ subtract 1 <$> counter
