@@ -14,7 +14,7 @@ import GHC.Generics
 import Generic.Data
 
 data Score = Score
-  { meaningfulLettersCountsDiff :: Sum Int
+  { significantLettersCountsDiff :: Sum Int
   , spacesMisalignment :: Sum Int
   } deriving (Eq, Ord, Show, Bounded, Generic)
     deriving (Semigroup, Monoid) via (Generically Score)
@@ -22,8 +22,8 @@ data Score = Score
 calcScore :: BS.ByteString -> BS.ByteString -> Score
 calcScore s1 s2 = Score { .. }
   where
-    meaningfulLettersCountsDiff = Sum $ calcLettersDiff s1 s2
-    spacesMisalignment | meaningfulLettersCountsDiff /= 0 = 0
+    significantLettersCountsDiff = Sum $ calcLettersDiff s1 s2
+    spacesMisalignment | significantLettersCountsDiff /= 0 = 0
                        | otherwise = Sum $ alignSpaces s1 s2
 
 calcLettersDiff :: BS.ByteString -> BS.ByteString -> Int
