@@ -66,7 +66,7 @@ runOptPipeline tg files = do
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
   (baseStyle, baseScore) <- chooseBaseStyle baseStyles files
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
-  stdout <- checked [sh|clang-format --style=#{baseStyle} --dump-config|]
+  stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
@@ -76,7 +76,7 @@ runOptPipeline tg files = do
                           ]
   let optEnv = OptEnv { .. }
   let optState = initOptState filledOptions baseScore
-  finalOptState <- flip runReaderT (optEnv, tg) $ execStateT (fixGD $ Just 10) optState
+  finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (optEnv, tg) $ execStateT (fixGD $ Just 10) optState
   pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }

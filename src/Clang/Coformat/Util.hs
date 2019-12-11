@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# LANGUAGE QuasiQuotes #-}
 
 module Clang.Coformat.Util where
 
@@ -13,7 +12,6 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has
 import Data.Bifunctor
 import GHC.Generics
-import Data.String.Interpolate.IsString
 import System.Exit
 
 data ExpectedFailure = FormatterSegfaulted TL.Text   -- kek
@@ -32,11 +30,15 @@ failuresAreUnexpected :: Failure -> UnexpectedFailure
 failuresAreUnexpected (UnexpectedFailure err) = err
 failuresAreUnexpected (ExpectedFailure (FormatterSegfaulted out)) = FormatterFailure 0 out
 
-checked :: (MonadError String m, MonadIO m) => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
+checked :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
+        => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
 checked act = do
   (ec, stdout, stderr) <- liftIO act
   case ec of ExitSuccess -> pure stdout
-             ExitFailure n -> throwError [i|clang-format failed with exit code #{n}:\n#{stderr}|]
+             ExitFailure n | n == cfCrashRetCode -> throwError $ FormatterSegfaulted stderr
+                           | otherwise -> throwError $ FormatterFailure n stderr
+  where
+    cfCrashRetCode = -8
 
 update :: Int -> (a -> a) -> [a] -> [a]
 update idx f = zipWith z [0..]
