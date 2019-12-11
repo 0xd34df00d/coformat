@@ -5,10 +5,11 @@
 
 module Clang.Coformat.Optimization where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
 import Control.Concurrent.Async.Pool
 import Control.Lens
 import Control.Monad.Except.CoHas
@@ -28,7 +29,6 @@ import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
-import Text.EditDistance
 
 data OptEnv = OptEnv
   { baseStyle :: T.Text
@@ -43,10 +43,10 @@ runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas Expected
 runClangFormat file logStr formattedSty = do
   let unpackedSty = BSL.unpack formattedSty
   stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{file}|]
-  source <- liftIO $ readFile file
-  let dist = levenshteinDistance defaultEditCosts source $ TL.unpack stdout
+  source <- liftIO $ BS.readFile file
+  let dist = calcScore source $ BSL.toStrict $ TL.encodeUtf8 stdout
   logDebugN [i|#{logStr}: #{dist}|]
-  pure $ Score dist
+  pure dist
 
 type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has OptEnv r)
 
