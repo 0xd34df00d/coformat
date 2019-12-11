@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric, DerivingVia #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, QuasiQuotes #-}
 
 module Clang.Coformat.Score
 ( Score
@@ -10,14 +10,18 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashMap.Strict as HM
 import Data.Char
 import Data.Monoid
+import Data.String.Interpolate
 import GHC.Generics
 import Generic.Data
 
 data Score = Score
   { significantLettersCountsDiff :: Sum Int
   , spacesMisalignment :: Sum Int
-  } deriving (Eq, Ord, Show, Bounded, Generic)
+  } deriving (Eq, Ord, Bounded, Generic)
     deriving (Semigroup, Monoid) via (Generically Score)
+
+instance Show Score where
+  show Score { .. } = [i|Score { #{getSum significantLettersCountsDiff} / #{getSum spacesMisalignment} }|]
 
 calcScore :: BS.ByteString -> BS.ByteString -> Score
 calcScore s1 s2 = Score { .. }
