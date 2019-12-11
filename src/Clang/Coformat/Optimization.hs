@@ -56,14 +56,14 @@ runClangFormatFiles varOpts logStr = do
   OptEnv { .. } <- ask
   let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
   let formattedSty = formatStyArg sty
-  fmap sum $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
+  fmap mconcat $ forM files $ \file -> runClangFormat file [i|#{logStr} at #{file}|] formattedSty
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [String] -> m (T.Text, Score)
 chooseBaseStyle baseStyles files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
     let formattedArg = formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] }
     convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{file}|] formattedArg
-  let accumulated = HM.toList $ HM.fromListWith (+) sty2dists
+  let accumulated = HM.toList $ HM.fromListWith (<>) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
 
@@ -147,7 +147,7 @@ stepGDGeneric' varGetters = do
 
 stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
               => [OptEnv -> [SomeIxedVariable]] -> m ()
-stepGDGeneric varGetters = whenM ((> 0) <$> gets currentScore) $ stepGDGeneric' varGetters
+stepGDGeneric varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' varGetters
 
 stepGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m) => m ()
 stepGD = stepGDGeneric [asSome . categoricalVariables, asSome . integralVariables]
