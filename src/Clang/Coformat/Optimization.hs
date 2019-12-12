@@ -106,11 +106,11 @@ showVariated vars opts = intercalate ", " [showVar var | var <- vars]
     showVar (SomeIxedVariable (IxedVariable _ idx)) = [i|#{name $ opts !! idx} -> #{typ $ opts !! idx}|]
 
 chooseBestSubset :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
-                 => [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
-chooseBestSubset ixedVariables = do
+                 => Int -> [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
+chooseBestSubset subsetSize ixedVariables = do
   OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrentlyPooled (subsetsN 1 ixedVariables) $ \someVarsSubset -> do
+  partialResults <- forConcurrentlyPooled (subsetsN subsetSize ixedVariables) $ \someVarsSubset -> do
     opt2scores <- forM (variateSubset someVarsSubset currentOpts) $ \opts' ->
       fmap (opts',) $ dropExpectedFailures $ runClangFormatFiles opts' $ showVariated someVarsSubset opts'
     let (bestOpts, bestScore) = minimumBy (comparing snd) opt2scores
@@ -123,26 +123,26 @@ chooseBestSubset ixedVariables = do
           else Nothing
 
 stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-               => [OptEnv -> [SomeIxedVariable]] -> m ()
-stepGDGeneric' varGetters = do
+               => Int -> [OptEnv -> [SomeIxedVariable]] -> m ()
+stepGDGeneric' subsetSize varGetters = do
   current <- get
   env@OptEnv { .. } <- ask
   tg <- ask
-  runReaderT (chooseBestSubset $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup) >>=
+  runReaderT (chooseBestSubset subsetSize $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup) >>=
     \case Nothing -> pure ()
           Just (opts', score') -> do
             logInfoN [i|Total score after optimization on all files: #{score'}|]
             put OptState { currentOpts = opts', currentScore = score' }
 
 stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-              => [OptEnv -> [SomeIxedVariable]] -> m ()
-stepGDGeneric varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' varGetters
+              => Int -> [OptEnv -> [SomeIxedVariable]] -> m ()
+stepGDGeneric subsetSize varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' subsetSize varGetters
 
 fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> m ()
 fixGD (Just 0) = pure ()
 fixGD counter = do
   startScore <- gets currentScore
-  stepGDGeneric [asSome . categoricalVariables, asSome . integralVariables]
+  stepGDGeneric 1 [asSome . categoricalVariables, asSome . integralVariables]
   endScore <- gets currentScore
   logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
   if startScore /= endScore
