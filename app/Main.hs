@@ -66,7 +66,7 @@ runOptPipeline tg files = do
   preparedFiles <- mapM prepareFile files
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
-  (baseStyle, baseScore) <- chooseBaseStyle baseStyles preparedFiles
+  (baseStyle, baseScore) <- chooseBaseStyle baseStyles constantOpts preparedFiles
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout

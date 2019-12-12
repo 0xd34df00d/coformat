@@ -58,10 +58,10 @@ runClangFormatFiles varOpts logStr = do
   let formattedSty = formatStyArg sty
   fmap mconcat $ forM preparedFiles $ \prepared -> runClangFormat prepared [i|#{logStr} at #{filename prepared}|] formattedSty
 
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [PreparedFile] -> m (T.Text, Score)
-chooseBaseStyle baseStyles files = do
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [ConfigItemT 'Value] -> [PreparedFile] -> m (T.Text, Score)
+chooseBaseStyle baseStyles predefinedOpts files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
-    let formattedArg = formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = [] }
+    let formattedArg = formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = predefinedOpts }
     convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{filename file}|] formattedArg
   let accumulated = HM.toList $ HM.fromListWith (<>) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
