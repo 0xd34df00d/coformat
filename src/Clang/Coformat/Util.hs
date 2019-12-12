@@ -70,3 +70,8 @@ convert :: MonadError e' m
         -> ExceptT e m a
         -> m a
 convert cvt act = runExceptT act >>= (E.liftEither . first cvt)
+
+subsetsN :: Int -> [a] -> [[a]]
+subsetsN _ [] = []
+subsetsN 1 xs = pure <$> xs
+subsetsN n (x:xs) = ((x:) <$> subsetsN (n - 1) xs) <> subsetsN n xs
