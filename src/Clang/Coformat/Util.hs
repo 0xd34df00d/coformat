@@ -6,6 +6,7 @@ module Clang.Coformat.Util where
 import qualified Control.Concurrent.Async as A
 import qualified Control.Concurrent.Async.Pool as A.P
 import qualified Control.Monad.Except as E
+import qualified Control.Monad.Reader as R
 import qualified Data.Text.Lazy as TL
 import Control.Monad.Except.CoHas
 import Control.Monad.Logger
@@ -55,12 +56,13 @@ forConcurrently' lst act = do
 
 forConcurrentlyPooled :: (MonadLoggerIO m, MonadError e m, MonadReader r m, Has A.P.TaskGroup r)
                       => [a]
-                      -> (forall m'. (MonadLoggerIO m', MonadError e m') => a -> m' b)
+                      -> (forall m'. (MonadLoggerIO m', MonadReader r m', MonadError e m') => a -> m' b)
                       -> m [b]
 forConcurrentlyPooled lst act = do
   logger <- askLoggerIO
   tg <- ask
-  result <- liftIO $ flip (A.P.mapConcurrently tg) lst $ \elt -> flip runLoggingT logger $ runExceptT $ act elt
+  env <- R.ask
+  result <- liftIO $ flip (A.P.mapConcurrently tg) lst $ \elt -> flip runLoggingT logger $ runExceptT $ flip runReaderT env $ act elt
   E.liftEither $ sequence result
 
 convert :: MonadError e' m

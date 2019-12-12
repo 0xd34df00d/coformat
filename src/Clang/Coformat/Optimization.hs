@@ -103,7 +103,7 @@ chooseBestVals :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
 chooseBestVals ixedVariables = do
   env@OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrentlyPooled ixedVariables $ \(SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx)) -> flip runReaderT env $ do
+  partialResults <- forConcurrentlyPooled ixedVariables $ \(SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx)) -> do
     let optName = name $ currentOpts !! idx
     opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
       let optValue = typ $ opts' !! idx
