@@ -138,11 +138,11 @@ stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
               => Int -> [OptEnv -> [SomeIxedVariable]] -> m ()
 stepGDGeneric subsetSize varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' subsetSize varGetters
 
-fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> m ()
-fixGD (Just 0) = pure ()
-fixGD counter = do
+fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> Int -> m ()
+fixGD (Just 0) _ = pure ()
+fixGD counter curSubsetCount = do
   startScore <- gets currentScore
-  stepGDGeneric 1 [asSome . categoricalVariables, asSome . integralVariables]
+  stepGDGeneric curSubsetCount [asSome . categoricalVariables, asSome . integralVariables]
   endScore <- gets currentScore
   logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
   if startScore /= endScore

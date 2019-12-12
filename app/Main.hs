@@ -17,6 +17,7 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Data.Bifunctor
 import Data.Foldable
+import Data.Maybe
 import Data.String.Interpolate.IsString
 import GHC.Conc
 import GHC.Generics
@@ -57,12 +58,13 @@ data Options w = Options
   , parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
   , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
   , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
+  , maxSubsetSize :: w ::: Maybe Int <?> "Maximum size of the inter-dependent subsets to consider (defaults to 1)"
   } deriving (Generic)
 
 instance ParseRecord (Options Wrapped)
 
-runOptPipeline :: (MonadError String m, MonadLoggerIO m) => TaskGroup -> [FilePath] -> m BS.ByteString
-runOptPipeline tg files = do
+runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Int -> TaskGroup -> [FilePath] -> m BS.ByteString
+runOptPipeline maxSubsetSize tg files = do
   preparedFiles <- mapM prepareFile files
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
@@ -78,7 +80,7 @@ runOptPipeline tg files = do
                           ]
   let optEnv = OptEnv { .. }
   let optState = initOptState filledOptions baseScore
-  finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (optEnv, tg) $ execStateT (fixGD $ Just 10) optState
+  finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (optEnv, tg) $ execStateT (fixGD Nothing 1) optState
   pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
   where
     constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
@@ -109,7 +111,7 @@ main = do
 
   res <- withDebugLog $ \maybeLogHandle ->
          withTaskGroup tgSize $ \tg ->
-         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline tg $ toList input
+         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline (fromMaybe 1 maxSubsetSize) tg $ toList input
   case res of
        Left err -> putStrLn err
        Right bs -> BS.writeFile output bs
