@@ -101,7 +101,7 @@ type BestVals = [(ConfigTypeT 'Value, Score, Int)]
 chooseBestVals :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
                => [SomeIxedVariable] -> m BestVals
 chooseBestVals ixedVariables = do
-  env@OptEnv { .. } <- ask
+  OptEnv { .. } <- ask
   OptState { .. } <- ask
   partialResults <- forConcurrentlyPooled ixedVariables $ \(SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx)) -> do
     let optName = name $ currentOpts !! idx
