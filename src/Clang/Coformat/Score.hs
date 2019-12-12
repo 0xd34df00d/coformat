@@ -11,7 +11,7 @@ module Clang.Coformat.Score
 ) where
 
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashMap.Strict as HM
+import qualified Data.IntMap.Strict as IM
 import Control.Monad.IO.Class
 import Data.Char
 import Data.Monoid
@@ -19,7 +19,7 @@ import Data.String.Interpolate
 import GHC.Generics
 import Generic.Data
 
-type CharsHist = HM.HashMap Char Int
+type CharsHist = IM.IntMap Int
 
 data PreparedFile = PreparedFile
   { filename :: FilePath
@@ -50,13 +50,13 @@ calcScore prepared str = Score { .. }
                        | otherwise = Sum $ alignSpaces (contents prepared) str
 
 calcCharsDiff :: CharsHist -> CharsHist -> Int
-calcCharsDiff hm1 hm2 = sum $ HM.elems $ HM.unionWith (\v1 v2 -> abs $ v1 - v2) hm1 hm2
+calcCharsDiff hm1 hm2 = sum $ IM.elems $ IM.unionWith (\v1 v2 -> abs $ v1 - v2) hm1 hm2
 
 calcCharsHist :: BS.ByteString -> CharsHist
 calcCharsHist = BS.foldl' ins mempty
   where
     ins hm ch | isSpace ch = hm
-              | otherwise = HM.insertWith (+) ch 1 hm
+              | otherwise = IM.insertWith (+) (ord ch) 1 hm
 
 alignSpaces :: BS.ByteString -> BS.ByteString -> Int
 alignSpaces bs1 bs2 = go (BS.unpack bs1) (BS.unpack bs2)
