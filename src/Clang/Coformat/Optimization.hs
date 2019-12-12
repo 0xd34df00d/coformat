@@ -138,14 +138,11 @@ stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
               => [OptEnv -> [SomeIxedVariable]] -> m ()
 stepGDGeneric varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' varGetters
 
-stepGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m) => m ()
-stepGD = stepGDGeneric [asSome . categoricalVariables, asSome . integralVariables]
-
 fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> m ()
 fixGD (Just 0) = pure ()
 fixGD counter = do
   startScore <- gets currentScore
-  stepGD
+  stepGDGeneric [asSome . categoricalVariables, asSome . integralVariables]
   endScore <- gets currentScore
   logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
   if startScore /= endScore
