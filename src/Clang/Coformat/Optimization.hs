@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables, ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections #-}
+{-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections, LambdaCase #-}
 
 module Clang.Coformat.Optimization where
 
@@ -17,7 +17,7 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has hiding(update)
 import Control.Monad.State.Strict
 import Data.Foldable
-import Data.Maybe
+import Data.List
 import Data.Ord
 import Data.Proxy
 import Data.String.Interpolate.IsString
@@ -96,45 +96,31 @@ dropExpectedFailures act = do
          pure maxBound
        Right sc -> pure sc
 
-type BestVals = [(ConfigTypeT 'Value, Score, Int)]
+variateSubset :: [SomeIxedVariable] -> [ConfigItemT 'Value] -> [[ConfigItemT 'Value]]
+variateSubset [] opts = [opts]
+variateSubset (SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx) : rest) opts = concatMap (variateSubset rest) $ variateAt @a Proxy idx opts
 
-chooseBestVals :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
-               => [SomeIxedVariable] -> m BestVals
-chooseBestVals ixedVariables = do
+showVariated :: [SomeIxedVariable] -> [ConfigItemT 'Value] -> String
+showVariated vars opts = intercalate ", " [showVar var | var <- vars]
+  where
+    showVar (SomeIxedVariable (IxedVariable _ idx)) = [i|#{name $ opts !! idx} -> #{typ $ opts !! idx}|]
+
+chooseBestSubset :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
+                 => [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
+chooseBestSubset ixedVariables = do
   OptEnv { .. } <- ask
   OptState { .. } <- ask
-  partialResults <- forConcurrentlyPooled ixedVariables $ \(SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx)) -> do
-    let optName = name $ currentOpts !! idx
-    opt2scores <- forM (variateAt @a Proxy idx currentOpts) $ \opts' -> do
-      let optValue = typ $ opts' !! idx
-      sumScore <- dropExpectedFailures $ runClangFormatFiles opts' [i|Variate guess for #{optName}=#{optValue}|]
-      logDebugN [i|Total dist for #{optName}=#{optValue}: #{sumScore}|]
-      pure (optValue, sumScore)
-    let (bestOptVal, bestScore) = minimumBy (comparing snd) opt2scores
-    logDebugN [i|Best step for #{optName}: #{bestOptVal} at #{bestScore} (compare to #{currentScore})|]
-    pure $ if bestScore < currentScore
-            then Just (bestOptVal, bestScore, idx)
-            else Nothing
-  pure $ catMaybes partialResults
-
-applyBestVals :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-              => BestVals -> m ()
-applyBestVals [] = logInfoN [i|Nothing got better on this iteration|]
-applyBestVals results = do
-  current <- get
-  let curOpts = currentOpts current
-  forM_ results $ \(val, score', idx) -> logInfoN [i|Setting #{name $ curOpts !! idx} to #{val} (#{currentScore current} -> #{score'})|]
-  let nextOpts = foldr (\(val, _, idx) -> update idx (\cfg -> cfg { typ = val })) curOpts results
-  sumScore <- dropExpectedFailures $ runClangFormatFiles nextOpts [i|Total score after optimization|]
-  let (bestVal, bestScore, bestIdx) = minimumBy (comparing (^._2)) results
-  if sumScore <= bestScore
-    then do
-      logInfoN [i|Total score after optimization on all files: #{sumScore}|]
-      put OptState { currentOpts = nextOpts, currentScore = sumScore }
-    else do
-      logWarnN [i|Greedy algorithm failed (got #{sumScore} while best individual is #{bestScore})|]
-      let nextOpts' = update bestIdx (\cfg -> cfg { typ = bestVal }) curOpts
-      put OptState { currentOpts = nextOpts', currentScore = bestScore }
+  partialResults <- forConcurrentlyPooled (subsetsN 1 ixedVariables) $ \someVarsSubset -> do
+    opt2scores <- forM (variateSubset someVarsSubset currentOpts) $ \opts' ->
+      fmap (opts',) $ dropExpectedFailures $ runClangFormatFiles opts' $ showVariated someVarsSubset opts'
+    let (bestOpts, bestScore) = minimumBy (comparing snd) opt2scores
+    when (bestScore < currentScore) $
+      logInfoN [i|Total dist for #{showVariated someVarsSubset bestOpts}: #{currentScore} -> #{bestScore}|]
+    pure (bestOpts, bestScore)
+  let (bestOpts, bestScore) = minimumBy (comparing snd) partialResults
+  pure $ if bestScore < currentScore
+          then Just (bestOpts, bestScore)
+          else Nothing
 
 stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
                => [OptEnv -> [SomeIxedVariable]] -> m ()
@@ -142,8 +128,11 @@ stepGDGeneric' varGetters = do
   current <- get
   env@OptEnv { .. } <- ask
   tg <- ask
-  results <- runReaderT (chooseBestVals $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup)
-  applyBestVals results
+  runReaderT (chooseBestSubset $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup) >>=
+    \case Nothing -> pure ()
+          Just (opts', score') -> do
+            logInfoN [i|Total score after optimization on all files: #{score'}|]
+            put OptState { currentOpts = opts', currentScore = score' }
 
 stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
               => [OptEnv -> [SomeIxedVariable]] -> m ()
