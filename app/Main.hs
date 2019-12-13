@@ -89,9 +89,10 @@ initializeOptions preparedFiles = do
   where
     hardcodedOptsNames = name <$> hardcodedOpts
 
-runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Natural -> TaskGroup -> [FilePath] -> m BS.ByteString
-runOptPipeline maxSubsetSize tg files = do
-  preparedFiles <- mapM prepareFile files
+runOptPipeline :: (MonadError String m, MonadLoggerIO m)
+               => Options Unwrapped -> TaskGroup -> m BS.ByteString
+runOptPipeline Options { .. } tg = do
+  preparedFiles <- mapM prepareFile $ toList input
 
   InitializeOptionsResult { .. } <- initializeOptions preparedFiles
 
@@ -101,7 +102,7 @@ runOptPipeline maxSubsetSize tg files = do
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . typ <$> filledOptions) [0..]
                           ]
-  let optEnv = OptEnv { constantOpts = hardcodedOpts, .. }
+  let optEnv = OptEnv { constantOpts = hardcodedOpts, maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (optEnv, tg) $ execStateT (fixGD Nothing 1) optState
   pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = hardcodedOpts <> currentOpts finalOptState }
@@ -117,7 +118,7 @@ logOutput debugHandle loc src level msg
 
 main :: IO ()
 main = do
-  Options { .. } <- unwrapRecord "coformat"
+  opts@Options { .. } <- unwrapRecord "coformat"
 
   tgSize <- case parallelism of
                  Just n -> pure $ fromIntegral n
@@ -128,7 +129,7 @@ main = do
 
   res <- withDebugLog $ \maybeLogHandle ->
          withTaskGroup tgSize $ \tg ->
-         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline (fromMaybe 1 maxSubsetSize) tg $ toList input
+         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline opts tg
   case res of
        Left err -> putStrLn err
        Right bs -> BS.writeFile output bs
