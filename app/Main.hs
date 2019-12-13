@@ -70,8 +70,14 @@ hardcodedOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
                 , ConfigItem { name = ["SortIncludes"], typ = CTBool False }
                 ]
 
+data InitializeOptionsResult = InitializeOptionsResult
+  { baseStyle :: T.Text
+  , baseScore :: Score
+  , filledOptions :: [ConfigItemT 'Value]
+  }
+
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
-                  => [PreparedFile] -> m (T.Text, Score, [ConfigItemT 'Value])
+                  => [PreparedFile] -> m InitializeOptionsResult
 initializeOptions preparedFiles = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) allOptions
@@ -79,7 +85,7 @@ initializeOptions preparedFiles = do
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
-  pure (baseStyle, baseScore, filledOptions)
+  pure InitializeOptionsResult { .. }
   where
     hardcodedOptsNames = name <$> hardcodedOpts
 
@@ -87,7 +93,7 @@ runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Natural -> TaskGroup
 runOptPipeline maxSubsetSize tg files = do
   preparedFiles <- mapM prepareFile files
 
-  (baseStyle, baseScore, filledOptions) <- initializeOptions preparedFiles
+  InitializeOptionsResult { .. } <- initializeOptions preparedFiles
 
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
