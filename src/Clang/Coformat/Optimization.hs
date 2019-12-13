@@ -21,6 +21,7 @@ import Data.List
 import Data.Ord
 import Data.Proxy
 import Data.String.Interpolate.IsString
+import Numeric.Natural
 import System.Command.QQ
 
 import Clang.Coformat.Score
@@ -35,7 +36,7 @@ data OptEnv = OptEnv
   , categoricalVariables :: [IxedCategoricalVariable]
   , integralVariables :: [IxedIntegralVariable]
   , constantOpts :: [ConfigItemT 'Value]
-  , maxSubsetSize :: Int
+  , maxSubsetSize :: Natural
   }
 
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
@@ -107,7 +108,7 @@ showVariated vars opts = intercalate ", " [showVar var | var <- vars]
     showVar (SomeIxedVariable (IxedVariable _ idx)) = [i|#{name $ opts !! idx} -> #{typ $ opts !! idx}|]
 
 chooseBestSubset :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
-                 => Int -> [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
+                 => Natural -> [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
 chooseBestSubset subsetSize ixedVariables = do
   OptEnv { .. } <- ask
   OptState { .. } <- ask
@@ -124,7 +125,7 @@ chooseBestSubset subsetSize ixedVariables = do
           else Nothing
 
 stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-               => Int -> [OptEnv -> [SomeIxedVariable]] -> m ()
+               => Natural -> [OptEnv -> [SomeIxedVariable]] -> m ()
 stepGDGeneric' subsetSize varGetters = do
   current <- get
   env@OptEnv { .. } <- ask
@@ -136,10 +137,10 @@ stepGDGeneric' subsetSize varGetters = do
             put OptState { currentOpts = opts', currentScore = score' }
 
 stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
-              => Int -> [OptEnv -> [SomeIxedVariable]] -> m ()
+              => Natural -> [OptEnv -> [SomeIxedVariable]] -> m ()
 stepGDGeneric subsetSize varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' subsetSize varGetters
 
-fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> Int -> m ()
+fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> Natural -> m ()
 fixGD (Just 0) _ = pure ()
 fixGD counter curSubsetSize = do
   maxSubsetSize' <- asks maxSubsetSize

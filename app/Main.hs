@@ -56,14 +56,14 @@ parseOptsDescription path = do
 data Options w = Options
   { parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
   , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
-  , maxSubsetSize :: w ::: Maybe Int <?> "Maximum size of the inter-dependent subsets to consider (defaults to 1)"
+  , maxSubsetSize :: w ::: Maybe Natural <?> "Maximum size of the inter-dependent subsets to consider (defaults to 1)"
   , input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
   , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   } deriving (Generic)
 
 instance ParseRecord (Options Wrapped)
 
-runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Int -> TaskGroup -> [FilePath] -> m BS.ByteString
+runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Natural -> TaskGroup -> [FilePath] -> m BS.ByteString
 runOptPipeline maxSubsetSize tg files = do
   preparedFiles <- mapM prepareFile files
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"

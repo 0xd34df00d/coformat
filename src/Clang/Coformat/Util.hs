@@ -13,6 +13,7 @@ import Control.Monad.Logger
 import Control.Monad.Reader.Has
 import Data.Bifunctor
 import GHC.Generics
+import Numeric.Natural
 import System.Exit
 
 data ExpectedFailure = FormatterSegfaulted TL.Text   -- kek
@@ -71,7 +72,7 @@ convert :: MonadError e' m
         -> m a
 convert cvt act = runExceptT act >>= (E.liftEither . first cvt)
 
-subsetsN :: Int -> [a] -> [[a]]
+subsetsN :: Natural -> [a] -> [[a]]
 subsetsN _ [] = []
 subsetsN 1 xs = pure <$> xs
 subsetsN n (x:xs) = ((x:) <$> subsetsN (n - 1) xs) <> subsetsN n xs
