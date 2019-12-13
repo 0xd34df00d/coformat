@@ -35,6 +35,7 @@ data OptEnv = OptEnv
   , categoricalVariables :: [IxedCategoricalVariable]
   , integralVariables :: [IxedIntegralVariable]
   , constantOpts :: [ConfigItemT 'Value]
+  , maxSubsetSize :: Int
   }
 
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
@@ -140,11 +141,17 @@ stepGDGeneric subsetSize varGetters = whenM ((> mempty) <$> gets currentScore) $
 
 fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> Int -> m ()
 fixGD (Just 0) _ = pure ()
-fixGD counter curSubsetCount = do
-  startScore <- gets currentScore
-  stepGDGeneric curSubsetCount [asSome . categoricalVariables, asSome . integralVariables]
-  endScore <- gets currentScore
-  logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
-  if startScore /= endScore
-    then fixGD $ subtract 1 <$> counter
-    else logInfoN [i|Done optimizing, stopped at score #{endScore}|]
+fixGD counter curSubsetSize = do
+  maxSubsetSize' <- asks maxSubsetSize
+  if curSubsetSize > maxSubsetSize'
+    then logInfoN [i|Done optimizing|]
+    else do
+      startScore <- gets currentScore
+      stepGDGeneric curSubsetSize [asSome . categoricalVariables, asSome . integralVariables]
+      endScore <- gets currentScore
+      logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
+      if startScore /= endScore
+        then fixGD (subtract 1 <$> counter) curSubsetSize
+        else do
+          logInfoN [i|Done optimizing with subset size #{curSubsetSize}, stopped at score #{endScore}|]
+          fixGD (subtract 1 <$> counter) (curSubsetSize + 1)
