@@ -151,7 +151,7 @@ fixGD counter curSubsetSize = do
       endScore <- gets currentScore
       logInfoN [i|Full optimization step done, went from #{startScore} to #{endScore}|]
       if startScore /= endScore
-        then fixGD (subtract 1 <$> counter) curSubsetSize
+        then fixGD (subtract 1 <$> counter) 1
         else do
           logInfoN [i|Done optimizing with subset size #{curSubsetSize}, stopped at score #{endScore}|]
           fixGD (subtract 1 <$> counter) (curSubsetSize + 1)
