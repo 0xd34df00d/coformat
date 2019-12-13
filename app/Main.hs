@@ -63,32 +63,42 @@ data Options w = Options
 
 instance ParseRecord (Options Wrapped)
 
-runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Natural -> TaskGroup -> [FilePath] -> m BS.ByteString
-runOptPipeline maxSubsetSize tg files = do
-  preparedFiles <- mapM prepareFile files
+hardcodedOpts :: [ConfigItemT 'Value]
+hardcodedOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
+                , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
+                , ConfigItem { name = ["DisableFormat"], typ = CTBool False }
+                , ConfigItem { name = ["SortIncludes"], typ = CTBool False }
+                ]
+
+initializeOptions :: (MonadError String m, MonadLoggerIO m)
+                  => [PreparedFile] -> m (T.Text, Score, [ConfigItemT 'Value])
+initializeOptions preparedFiles = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
-  let varyingOptions = filter (not . (`elem` constantOptsNames) . name) allOptions
-  (baseStyle, baseScore) <- chooseBaseStyle baseStyles constantOpts preparedFiles
+  let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) allOptions
+  (baseStyle, baseScore) <- chooseBaseStyle baseStyles hardcodedOpts preparedFiles
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
   filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
+  pure (baseStyle, baseScore, filledOptions)
+  where
+    hardcodedOptsNames = name <$> hardcodedOpts
+
+runOptPipeline :: (MonadError String m, MonadLoggerIO m) => Natural -> TaskGroup -> [FilePath] -> m BS.ByteString
+runOptPipeline maxSubsetSize tg files = do
+  preparedFiles <- mapM prepareFile files
+
+  (baseStyle, baseScore, filledOptions) <- initializeOptions preparedFiles
+
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
                              ]
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . typ <$> filledOptions) [0..]
                           ]
-  let optEnv = OptEnv { .. }
+  let optEnv = OptEnv { constantOpts = hardcodedOpts, .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (optEnv, tg) $ execStateT (fixGD Nothing 1) optState
-  pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> currentOpts finalOptState }
-  where
-    constantOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
-                   , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
-                   , ConfigItem { name = ["DisableFormat"], typ = CTBool False }
-                   , ConfigItem { name = ["SortIncludes"], typ = CTBool False }
-                   ]
-    constantOptsNames = name <$> constantOpts
+  pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = hardcodedOpts <> currentOpts finalOptState }
 
 logOutput :: Maybe Handle
           -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
