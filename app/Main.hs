@@ -54,11 +54,11 @@ parseOptsDescription path = do
     bosKey = ["BasedOnStyle"]
 
 data Options w = Options
-  { input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
-  , parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
+  { parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
   , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
-  , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   , maxSubsetSize :: w ::: Maybe Int <?> "Maximum size of the inter-dependent subsets to consider (defaults to 1)"
+  , input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
+  , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   } deriving (Generic)
 
 instance ParseRecord (Options Wrapped)
