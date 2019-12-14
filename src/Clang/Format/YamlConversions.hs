@@ -7,6 +7,8 @@ module Clang.Format.YamlConversions
 ( fillConfigItems
 , FillError
 
+, preprocessYaml
+
 , formatClangFormat
 ) where
 
