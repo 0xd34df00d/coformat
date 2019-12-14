@@ -102,9 +102,10 @@ runOptPipeline Options { .. } tg = do
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . typ <$> filledOptions) [0..]
                           ]
-  let optEnv = OptEnv { constantOpts = hardcodedOpts, maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
+  let fmtEnv = FmtEnv { constantOpts = hardcodedOpts, .. }
+  let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
-  finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (optEnv, tg) $ execStateT (fixGD Nothing 1) optState
+  finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (fmtEnv, optEnv, tg) $ execStateT (fixGD Nothing 1) optState
   pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = hardcodedOpts <> currentOpts finalOptState }
 
 logOutput :: Maybe Handle

@@ -30,12 +30,15 @@ import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
 
-data OptEnv = OptEnv
+data FmtEnv = FmtEnv
   { baseStyle :: T.Text
   , preparedFiles :: [PreparedFile]
-  , categoricalVariables :: [IxedCategoricalVariable]
-  , integralVariables :: [IxedIntegralVariable]
   , constantOpts :: [ConfigItemT 'Value]
+  }
+
+data OptEnv = OptEnv
+  { categoricalVariables :: [IxedCategoricalVariable]
+  , integralVariables :: [IxedIntegralVariable]
   , maxSubsetSize :: Natural
   }
 
@@ -50,12 +53,12 @@ runClangFormat prepared logStr formattedSty = do
     path = filename prepared
     unpackedSty = BSL.unpack formattedSty
 
-type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has OptEnv r)
+type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has FmtEnv r)
 
 runClangFormatFiles :: (OptMonad err r m, CoHas ExpectedFailure err)
                     => [ConfigItemT 'Value] -> String -> m Score
 runClangFormatFiles varOpts logStr = do
-  OptEnv { .. } <- ask
+  FmtEnv { .. } <- ask
   let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
   let formattedSty = formatStyArg sty
   fmap mconcat $ forM preparedFiles $ \prepared -> runClangFormat prepared [i|#{logStr} at #{filename prepared}|] formattedSty
@@ -123,23 +126,25 @@ chooseBestSubset subsetSize ixedVariables = do
           then Just (bestOpts, bestScore)
           else Nothing
 
-stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
+stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, Has OptEnv r, MonadState OptState m)
                => Natural -> [OptEnv -> [SomeIxedVariable]] -> m ()
 stepGDGeneric' subsetSize varGetters = do
   current <- get
-  env@OptEnv { .. } <- ask
-  tg <- ask
-  runReaderT (chooseBestSubset subsetSize $ concatMap ($ env) varGetters) (current, env, tg :: TaskGroup) >>=
+  fmtEnv@FmtEnv { .. } <- ask
+  optEnv <- ask
+  tg :: TaskGroup <- ask
+  runReaderT (chooseBestSubset subsetSize $ concatMap ($ optEnv) varGetters) (current, fmtEnv, tg) >>=
     \case Nothing -> pure ()
           Just (opts', score') -> do
             logInfoN [i|Total score after optimization on all files: #{score'}|]
             put OptState { currentOpts = opts', currentScore = score' }
 
-stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m)
+stepGDGeneric :: (OptMonad err r m, Has TaskGroup r, Has OptEnv r, MonadState OptState m)
               => Natural -> [OptEnv -> [SomeIxedVariable]] -> m ()
 stepGDGeneric subsetSize varGetters = whenM ((> mempty) <$> gets currentScore) $ stepGDGeneric' subsetSize varGetters
 
-fixGD :: (OptMonad err r m, Has TaskGroup r, MonadState OptState m, err ~ UnexpectedFailure) => Maybe Int -> Natural -> m ()
+fixGD :: (OptMonad err r m, Has TaskGroup r, Has OptEnv r, MonadState OptState m, err ~ UnexpectedFailure)
+      => Maybe Int -> Natural -> m ()
 fixGD (Just 0) _ = pure ()
 fixGD counter curSubsetSize = do
   maxSubsetSize' <- asks maxSubsetSize
