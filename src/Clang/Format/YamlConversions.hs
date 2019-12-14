@@ -28,11 +28,15 @@ data FillError
   | YamlAnalysisError YamlAnalysisError
   deriving (Show, Generic, CoHas ParseException, CoHas YamlAnalysisError)
 
+preprocessYaml :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
+               => BS.ByteString -> m Object
+preprocessYaml yamlContents = liftEither (decodeEither' yamlContents)
+                          >>= extractMap
+                          >>= braceWrappingKludge
+
 fillConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
                 => [ConfigItemT 'Supported] -> BS.ByteString -> m [ConfigItemT 'Value]
-fillConfigItems supported yamlContents = liftEither (decodeEither' yamlContents)
-                                     >>= extractMap
-                                     >>= braceWrappingKludge
+fillConfigItems supported yamlContents = preprocessYaml yamlContents
                                      >>= fillConfigItemsFromObj supported
 
 data YamlAnalysisError
