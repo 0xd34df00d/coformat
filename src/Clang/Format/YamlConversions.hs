@@ -14,7 +14,6 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Except.CoHas
-import Data.Either.Combinators
 import Data.Scientific
 import Data.Yaml
 import Data.Yaml.Pretty
@@ -51,7 +50,7 @@ extractMap _ = throwError $ YamlNotAnObject "Top-level value is not an object"
 
 braceWrappingKludge :: (MonadError e m, CoHas YamlAnalysisError e) => Object -> m Object
 braceWrappingKludge fields = do
-  bwVal <- liftEither $ maybeToRight (ValueNotFound bwField) $ HM.lookup bwField fields
+  bwVal <- liftMaybe (ValueNotFound bwField) $ HM.lookup bwField fields
   bwValObj <- case bwVal of
                    Object obj -> pure obj
                    _ -> throwError $ YamlNotAnObject "Brace wrapping value is not an object"
