@@ -110,7 +110,6 @@ showVariated vars opts = intercalate ", " [showVar var | var <- vars]
 chooseBestSubset :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
                  => Natural -> [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
 chooseBestSubset subsetSize ixedVariables = do
-  OptEnv { .. } <- ask
   OptState { .. } <- ask
   partialResults <- forConcurrentlyPooled (subsetsN subsetSize ixedVariables) $ \someVarsSubset -> do
     opt2scores <- forM (variateSubset someVarsSubset currentOpts) $ \opts' ->
