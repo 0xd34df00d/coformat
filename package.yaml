@@ -25,7 +25,6 @@ dependencies:
 - command-qq
 - containers
 - dom-selector
-- either
 - extra
 - fast-logger
 - generic-data
