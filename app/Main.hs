@@ -8,17 +8,22 @@ module Main where
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.List.NonEmpty as N
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TL
+import qualified Control.Monad.Except.CoHas as EC
 import Control.Concurrent.Async.Pool
+import Control.Lens hiding (Wrapped, Unwrapped)
 import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+import Data.Aeson.Lens
 import Data.Bifunctor
 import Data.Foldable
 import Data.Maybe
 import Data.String.Interpolate.IsString
+import Data.Traversable
 import GHC.Conc
 import GHC.Generics
 import Numeric.Natural
@@ -57,6 +62,7 @@ data Options w = Options
   { parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
   , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
   , maxSubsetSize :: w ::: Maybe Natural <?> "Maximum size of the inter-dependent subsets to consider (defaults to 1)"
+  , resumePath :: w ::: Maybe FilePath <?> "The path to the style format file to start from (if any)"
   , input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
   , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   } deriving (Generic)
@@ -77,14 +83,32 @@ data InitializeOptionsResult = InitializeOptionsResult
   }
 
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
-                  => [PreparedFile] -> m InitializeOptionsResult
-initializeOptions preparedFiles = do
+                  => [PreparedFile] -> Maybe FilePath -> m InitializeOptionsResult
+initializeOptions preparedFiles maybeResumePath = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) allOptions
-  (baseStyle, baseScore) <- chooseBaseStyle baseStyles hardcodedOpts preparedFiles
+
+  maybeResumeObj <- for maybeResumePath $ liftIO . BS.readFile
+                                      >=> convert (show @FillError) . preprocessYaml PartialConfig
+  maybeResumeOptions <- for maybeResumeObj $ convert (show @FillError) . collectConfigItems varyingOptions
+
+  (baseStyle, baseScore) <-
+      case maybeResumeObj of
+           Nothing -> chooseBaseStyle baseStyles hardcodedOpts preparedFiles
+           Just resumeObj -> do
+              baseStyle <- EC.liftMaybe ("Unable to find `BasedOnStyle` key in the resume file" :: String)
+                        $ HM.lookup "BasedOnStyle" resumeObj ^? _Just . _String
+              constantOpts <- convert (show @FillError) $ collectConfigItems varyingOptions resumeObj
+              score <- convert (show @Failure) $ flip runReaderT FmtEnv { .. } $ runClangFormatFiles hardcodedOpts [i|Calculating the score of the resumed-from style|]
+              pure (baseStyle, score)
+
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
-  filledOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
+  baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
+
+  let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
+                    | otherwise = baseOptions
+
   pure InitializeOptionsResult { .. }
   where
     hardcodedOptsNames = name <$> hardcodedOpts
@@ -94,7 +118,7 @@ runOptPipeline :: (MonadError String m, MonadLoggerIO m)
 runOptPipeline Options { .. } tg = do
   preparedFiles <- mapM prepareFile $ toList input
 
-  InitializeOptionsResult { .. } <- initializeOptions preparedFiles
+  InitializeOptionsResult { .. } <- initializeOptions preparedFiles resumePath
 
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
