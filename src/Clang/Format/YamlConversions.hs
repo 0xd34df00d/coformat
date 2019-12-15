@@ -1,12 +1,13 @@
 {-# LANGUAGE DataKinds, GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, LambdaCase #-}
 
 module Clang.Format.YamlConversions
 ( fillConfigItems
 , FillError
 
+, YamlConfigType(..)
 , preprocessYaml
 
 , formatClangFormat
@@ -30,15 +31,22 @@ data FillError
   | YamlValueNotFound ValueNotFound
   deriving (Show, Generic, CoHas ParseException, CoHas YamlAnalysisError, CoHas ValueNotFound)
 
+data YamlConfigType = StyleDump | PartialConfig
+
 preprocessYaml :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e, CoHas ValueNotFound e)
-               => BS.ByteString -> m Object
-preprocessYaml yamlContents = liftEither (decodeEither' yamlContents)
-                          >>= extractMap
-                          >>= braceWrappingKludge
+               => YamlConfigType -> BS.ByteString -> m Object
+preprocessYaml configType yamlContents = liftEither (decodeEither' yamlContents)
+                                     >>= extractMap
+                                     >>= bwWithFailure configType
+  where
+    bwWithFailure StyleDump = braceWrappingKludge >=> liftEither
+    bwWithFailure PartialConfig = \obj -> braceWrappingKludge obj
+                                      >>= \case Left _ -> pure obj
+                                                Right obj' -> pure obj'
 
 fillConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e, CoHas ValueNotFound e)
                 => [ConfigItemT 'Supported] -> BS.ByteString -> m [ConfigItemT 'Value]
-fillConfigItems supported yamlContents = preprocessYaml yamlContents
+fillConfigItems supported yamlContents = preprocessYaml StyleDump yamlContents
                                      >>= fillConfigItemsFromObj supported
                                      >>= liftEither . sequence
 
@@ -53,18 +61,17 @@ extractMap :: (MonadError e m, CoHas YamlAnalysisError e) => Value -> m Object
 extractMap (Object fields) = pure fields
 extractMap _ = throwError $ YamlNotAnObject "Top-level value is not an object"
 
-braceWrappingKludge :: (MonadError e m, CoHas YamlAnalysisError e, CoHas ValueNotFound e) => Object -> m Object
-braceWrappingKludge fields = do
-  bwVal <- liftMaybe (ValueNotFound bwField) $ HM.lookup bwField fields
-  bwValObj <- case bwVal of
-                   Object obj -> pure obj
-                   _ -> throwError $ YamlNotAnObject "Brace wrapping value is not an object"
-  let bwSubfields = HM.fromList [ (bwField <> "." <> key, val)
-                                | (key, val) <- HM.toList bwValObj
-                                ]
-  pure $ HM.delete bwField fields <> bwSubfields
+braceWrappingKludge :: (MonadError e m, CoHas YamlAnalysisError e) => Object -> m (Either ValueNotFound Object)
+braceWrappingKludge fields
+  | Nothing <- maybeBWVal = pure $ Left $ ValueNotFound bwField
+  | Just (Object obj) <- maybeBWVal = let bwSubfields = HM.fromList [ (bwField <> "." <> key, val)
+                                                                    | (key, val) <- HM.toList obj
+                                                                    ]
+                                      in pure $ Right $ HM.delete bwField fields <> bwSubfields
+  | otherwise = throwError $ YamlNotAnObject "Brace wrapping value is not an object"
   where
     bwField = "BraceWrapping"
+    maybeBWVal = HM.lookup bwField fields
 
 fillConfigItemsFromObj :: (MonadError e m, CoHas YamlAnalysisError e)
                        => [ConfigItemT 'Supported] -> Object -> m [Either ValueNotFound (ConfigItemT 'Value)]
