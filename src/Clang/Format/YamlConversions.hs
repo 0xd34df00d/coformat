@@ -10,6 +10,8 @@ module Clang.Format.YamlConversions
 , YamlConfigType(..)
 , preprocessYaml
 
+, replaceConfigItems
+
 , formatClangFormat
 ) where
 
@@ -17,6 +19,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Except.CoHas
+import Data.Either
 import Data.Scientific
 import Data.Yaml
 import Data.Yaml.Pretty
@@ -44,11 +47,17 @@ preprocessYaml configType yamlContents = liftEither (decodeEither' yamlContents)
                                       >>= \case Left _ -> pure obj
                                                 Right obj' -> pure obj'
 
+-- Errors out in case of missing items (note 'ValueNotFound' in the constraint).
 fillConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e, CoHas ValueNotFound e)
                 => [ConfigItemT 'Supported] -> BS.ByteString -> m [ConfigItemT 'Value]
 fillConfigItems supported yamlContents = preprocessYaml StyleDump yamlContents
                                      >>= fillConfigItemsFromObj supported
                                      >>= liftEither . sequence
+
+-- Drops missing items.
+replaceConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
+                   => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'Value]
+replaceConfigItems supported yamlObject = rights <$> fillConfigItemsFromObj supported yamlObject
 
 data YamlAnalysisError
   = YamlNotAnObject String
