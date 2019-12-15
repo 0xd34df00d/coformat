@@ -10,7 +10,7 @@ module Clang.Format.YamlConversions
 , YamlConfigType(..)
 , preprocessYaml
 
-, replaceConfigItems
+, collectConfigItems
 
 , formatClangFormat
 ) where
@@ -55,9 +55,9 @@ fillConfigItems supported yamlContents = preprocessYaml StyleDump yamlContents
                                      >>= liftEither . sequence
 
 -- Drops missing items.
-replaceConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
+collectConfigItems :: (MonadError e m, CoHas ParseException e, CoHas YamlAnalysisError e)
                    => [ConfigItemT 'Supported] -> Object -> m [ConfigItemT 'Value]
-replaceConfigItems supported yamlObject = rights <$> fillConfigItemsFromObj supported yamlObject
+collectConfigItems supported yamlObject = rights <$> fillConfigItemsFromObj supported yamlObject
 
 data YamlAnalysisError
   = YamlNotAnObject String
