@@ -29,6 +29,7 @@ data ConfigTypeT f
 deriving instance Show (ConfigTypeT 'Parsed)
 deriving instance Show (ConfigTypeT 'Supported)
 deriving instance Show (ConfigTypeT 'Value)
+deriving instance Eq (ConfigTypeT 'Value)
 
 data ConfigItemT f = ConfigItem
   { name :: [T.Text]
