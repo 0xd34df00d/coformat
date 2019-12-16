@@ -38,6 +38,7 @@ import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
+import Clang.Format.Descr.Operations
 import Clang.Format.DescrParser
 import Clang.Format.YamlConversions
 
