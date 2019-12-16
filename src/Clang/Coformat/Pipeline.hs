@@ -66,6 +66,7 @@ hardcodedOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
 data InitializeOptionsResult = InitializeOptionsResult
   { baseStyle :: T.Text
   , baseScore :: Score
+  , baseOptions :: [ConfigItemT 'Value]
   , filledOptions :: [ConfigItemT 'Value]
   }
 
@@ -124,4 +125,7 @@ runOptPipeline PipelineOpts { .. } = do
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (fmtEnv, optEnv, taskGroup) $ execStateT (fixGD Nothing 1) optState
-  pure $ formatClangFormat $ StyOpts { basedOnStyle = baseStyle, additionalOpts = hardcodedOpts <> currentOpts finalOptState }
+  let finalStyOpts = StyOpts { basedOnStyle = baseStyle
+                             , additionalOpts = hardcodedOpts <> currentOpts finalOptState `subtractMatching` baseOptions
+                             }
+  pure $ formatClangFormat finalStyOpts
