@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds, GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards, LambdaCase, QuasiQuotes, OverloadedStrings #-}
 
 module Clang.Format.Descr.Operations where
@@ -38,8 +39,8 @@ subtractMatching minuend subtrahend = filter f minuend
     f ConfigItem { .. } = (/= Just value) $ HM.lookup name subMap
     subMap = HM.fromList [ (name, value) | ConfigItem { .. } <- subtrahend]
 
-parseConfigValue :: (CTData f Void ~ Void) => ConfigItemT f -> String -> Either String (ConfigItemT 'Value)
-parseConfigValue cfg str = (\parsed -> ConfigItem { name = name cfg, value = parsed }) <$> eitherParsed
+parseConfigValue :: MonadError String m => (CTData f Void ~ Void) => ConfigItemT f -> String -> m (ConfigItemT 'Value)
+parseConfigValue cfg str = liftEither $ (\parsed -> ConfigItem { name = name cfg, value = parsed }) <$> eitherParsed
   where
     eitherParsed = case value cfg of
                         CTInt _ -> CTInt <$> readEither str
