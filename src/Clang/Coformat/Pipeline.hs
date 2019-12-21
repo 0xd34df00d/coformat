@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds, GADTs #-}
 {-# LANGUAGE TypeApplications, OverloadedStrings, RecordWildCards, QuasiQuotes #-}
 
 module Clang.Coformat.Pipeline
@@ -101,7 +101,7 @@ initializeOptions preparedFiles maybeResumePath = do
   where
     hardcodedOptsNames = name <$> hardcodedOpts
 
-parseUserOpts :: MonadError String m => [String] -> [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
+parseUserOpts :: (MonadError String m, ParseableConfigState f) => [String] -> [ConfigItemT f] -> m [ConfigItemT 'Value]
 parseUserOpts opts baseOpts = forM opts $ splitStr >=> findBaseOpt >=> uncurry parseConfigValue
   where
     splitStr str | (name, _:valStr) <- break (== ':') str = pure (T.splitOn "." $ T.pack name, valStr)
