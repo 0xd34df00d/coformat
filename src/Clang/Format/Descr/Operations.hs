@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds, GADTs #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, LambdaCase #-}
 
 module Clang.Format.Descr.Operations where
 
@@ -12,15 +12,15 @@ import Clang.Format.Descr
 filterParsedItems :: [ConfigItemT 'Parsed] -> [ConfigItemT 'Supported]
 filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterType typ
   where
-    filterType typ = case typ of
-                          CTInt () -> Just $ CTInt ()
-                          CTUnsigned () -> Just $ CTUnsigned ()
-                          CTBool () -> Just $ CTBool ()
-                          CTString () -> Nothing
-                          CTStringVec () -> Nothing
-                          CTRawStringFormats () -> Nothing
-                          CTIncludeCats () -> Nothing
-                          CTEnum vars () -> Just $ CTEnum vars ()
+    filterType = \case
+                    CTInt () -> Just $ CTInt ()
+                    CTUnsigned () -> Just $ CTUnsigned ()
+                    CTBool () -> Just $ CTBool ()
+                    CTString () -> Nothing
+                    CTStringVec () -> Nothing
+                    CTRawStringFormats () -> Nothing
+                    CTIncludeCats () -> Nothing
+                    CTEnum vars () -> Just $ CTEnum vars ()
 
 replaceItemsWith :: [ConfigItemT 'Value] -> [ConfigItemT 'Value] -> [ConfigItemT 'Value]
 replaceItemsWith l1 l2 = M.elems $ toMap l2 <> toMap l1
