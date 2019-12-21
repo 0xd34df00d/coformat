@@ -1,11 +1,16 @@
 {-# LANGUAGE DataKinds, GADTs #-}
-{-# LANGUAGE RecordWildCards, LambdaCase #-}
+{-# LANGUAGE RecordWildCards, LambdaCase, QuasiQuotes, OverloadedStrings #-}
 
 module Clang.Format.Descr.Operations where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
+import Control.Monad.Except
 import Data.Maybe
+import Data.String.Interpolate.IsString
+import Data.Void
+import Text.Read
 
 import Clang.Format.Descr
 
@@ -32,3 +37,20 @@ subtractMatching minuend subtrahend = filter f minuend
   where
     f ConfigItem { .. } = (/= Just value) $ HM.lookup name subMap
     subMap = HM.fromList [ (name, value) | ConfigItem { .. } <- subtrahend]
+
+parseConfigValue :: (CTData f Void ~ Void) => ConfigItemT f -> String -> Either String (ConfigItemT 'Value)
+parseConfigValue cfg str = (\parsed -> ConfigItem { name = name cfg, value = parsed }) <$> eitherParsed
+  where
+    eitherParsed = case value cfg of
+                        CTInt _ -> CTInt <$> readEither str
+                        CTUnsigned _ -> CTUnsigned <$> readEither str
+                        CTBool _ -> CTBool <$> readEither str
+                        CTString val -> absurd val
+                        CTStringVec val -> absurd val
+                        CTRawStringFormats val -> absurd val
+                        CTIncludeCats val -> absurd val
+                        CTEnum variants _ -> do
+                          var <- readEither str
+                          unless (var `elem` variants) $
+                            throwError [i|Unsupported option `${var}`, supported ones are `#{T.intercalate "`, `" variants}`|]
+                          pure $ CTEnum variants var
