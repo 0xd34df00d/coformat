@@ -52,10 +52,8 @@ parseConfigValue cfg str = liftEither $ (\parsed -> ConfigItem { name = name cfg
                         CTStringVec val -> absurd val
                         CTRawStringFormats val -> absurd val
                         CTIncludeCats val -> absurd val
-                        CTEnum variants _ -> do
-                          var <- readEither'
-                          unless (var `elem` variants) $
-                            throwError [i|Unsupported option `${var}`, supported ones are `#{T.intercalate "`, `" variants}`|]
-                          pure $ CTEnum variants var
+                        CTEnum variants _ | var `elem` variants -> pure $ CTEnum variants var
+                                          | otherwise -> throwError [i|Unsupported option `#{var}`, supported ones are `#{T.intercalate "`, `" variants}`|]
+                            where var = T.pack str
     readEither' :: forall a. (Typeable a, Read a) => Either String a
     readEither' = first (\err -> [i|Error parsing #{str} as #{typeRep (Proxy :: Proxy a)}: #{err}, expected type: #{value cfg}|]) $ readEither str
