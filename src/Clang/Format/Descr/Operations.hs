@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, GADTs #-}
+{-# LANGUAGE DataKinds, GADTs, ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards, LambdaCase, QuasiQuotes, OverloadedStrings #-}
 
@@ -41,7 +41,9 @@ subtractMatching minuend subtrahend = filter f minuend
     f ConfigItem { .. } = (/= Just value) $ HM.lookup name subMap
     subMap = HM.fromList [ (name, value) | ConfigItem { .. } <- subtrahend]
 
-parseConfigValue :: (MonadError String m, CTData f Void ~ Void, Show (ConfigTypeT f)) => ConfigItemT f -> String -> m (ConfigItemT 'Value)
+type ParseableConfigState f = (CTData f Void ~ Void, Show (ConfigTypeT f))
+
+parseConfigValue :: (MonadError String m, ParseableConfigState f) => ConfigItemT f -> String -> m (ConfigItemT 'Value)
 parseConfigValue cfg str = liftEither $ (\parsed -> ConfigItem { name = name cfg, value = parsed }) <$> eitherParsed
   where
     eitherParsed = case value cfg of
