@@ -24,6 +24,7 @@ data Options w = Options
   , debugLog :: w ::: Maybe FilePath <?> "Debug log file (disabled by default)"
   , maxSubsetSize :: w ::: Maybe Natural <?> "Maximum size of the inter-dependent subsets to consider (defaults to 1)"
   , resumePath :: w ::: Maybe FilePath <?> "The path to the style format file to start from (if any)"
+  , forceOption :: w ::: [String] <?> "Force these options to have the given values (`option:value`)"
   , input :: w ::: N.NonEmpty FilePath <?> "The input file(s) to use"
   , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   } deriving (Generic)
@@ -52,7 +53,7 @@ main = do
 
   res <- withDebugLog $ \maybeLogHandle ->
          withTaskGroup tgSize $ \taskGroup ->
-         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline PipelineOpts { .. }
+         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline PipelineOpts { forceStrs = forceOption, .. }
   case res of
        Left err -> putStrLn err
        Right bs -> BS.writeFile output bs

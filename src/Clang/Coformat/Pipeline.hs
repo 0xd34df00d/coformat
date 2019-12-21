@@ -101,11 +101,22 @@ initializeOptions preparedFiles maybeResumePath = do
   where
     hardcodedOptsNames = name <$> hardcodedOpts
 
+parseUserOpts :: MonadError String m => [String] -> [ConfigItemT 'Value] -> m [ConfigItemT 'Value]
+parseUserOpts opts baseOpts = forM opts $ splitStr >=> findBaseOpt >=> uncurry parseConfigValue
+  where
+    splitStr str | (name, _:valStr) <- break (== ':') str = pure (T.splitOn "." $ T.pack name, valStr)
+                 | otherwise = throwError [i|Unable to parse `#{str}`: it should have the form of `name:value`|]
+    findBaseOpt (name, valStr) | Just item <- HM.lookup name baseOptsMap = pure (item, valStr)
+                               | otherwise = throwError [i|Unable to find option `#{name}`|]
+
+    baseOptsMap = HM.fromList [ (name item, item) | item <- baseOpts]
+
 data PipelineOpts = PipelineOpts
   { maxSubsetSize :: Maybe Natural
   , resumePath :: Maybe FilePath
   , input :: NonEmpty FilePath
   , taskGroup :: TaskGroup
+  , forceStrs :: [String]
   }
 
 runOptPipeline :: (MonadError String m, MonadLoggerIO m)
@@ -115,13 +126,15 @@ runOptPipeline PipelineOpts { .. } = do
 
   InitializeOptionsResult { .. } <- initializeOptions preparedFiles resumePath
 
+  userForcedOpts <- parseUserOpts forceStrs baseOptions
+
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . value <$> filledOptions) [0..]
                              ]
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . value <$> filledOptions) [0..]
                           ]
-  let fmtEnv = FmtEnv { constantOpts = hardcodedOpts, .. }
+  let fmtEnv = FmtEnv { constantOpts = hardcodedOpts <> userForcedOpts, .. }
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (fmtEnv, optEnv, taskGroup) $ execStateT (fixGD Nothing 1) optState
