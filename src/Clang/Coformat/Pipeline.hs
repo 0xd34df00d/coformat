@@ -68,26 +68,30 @@ data InitializeOptionsResult = InitializeOptionsResult
   , baseScore :: Score
   , baseOptions :: [ConfigItemT 'Value]
   , filledOptions :: [ConfigItemT 'Value]
+  , userForcedOpts :: [ConfigItemT 'Value]
   }
 
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
-                  => [PreparedFile] -> Maybe FilePath -> m InitializeOptionsResult
-initializeOptions preparedFiles maybeResumePath = do
+                  => [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
+initializeOptions preparedFiles maybeResumePath forceStrs = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) allOptions
+  userForcedOpts <- parseUserOpts forceStrs allOptions
 
   maybeResumeObj <- for maybeResumePath $ liftIO . BS.readFile
                                       >=> convert (show @FillError) . preprocessYaml PartialConfig
   maybeResumeOptions <- for maybeResumeObj $ convert (show @FillError) . collectConfigItems varyingOptions
 
+  let allFixedOpts = hardcodedOpts <> userForcedOpts
+
   (baseStyle, baseScore) <-
       case maybeResumeObj of
-           Nothing -> chooseBaseStyle baseStyles hardcodedOpts preparedFiles
+           Nothing -> chooseBaseStyle baseStyles allFixedOpts preparedFiles
            Just resumeObj -> do
               baseStyle <- EC.liftMaybe ("Unable to find `BasedOnStyle` key in the resume file" :: String)
                         $ HM.lookup "BasedOnStyle" resumeObj ^? _Just . _String
               constantOpts <- convert (show @FillError) $ collectConfigItems varyingOptions resumeObj
-              score <- convert (show @Failure) $ flip runReaderT FmtEnv { .. } $ runClangFormatFiles hardcodedOpts [i|Calculating the score of the resumed-from style|]
+              score <- convert (show @Failure) $ flip runReaderT FmtEnv { .. } $ runClangFormatFiles allFixedOpts [i|Calculating the score of the resumed-from style|]
               pure (baseStyle, score)
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
@@ -124,9 +128,7 @@ runOptPipeline :: (MonadError String m, MonadLoggerIO m)
 runOptPipeline PipelineOpts { .. } = do
   preparedFiles <- mapM prepareFile $ toList input
 
-  InitializeOptionsResult { .. } <- initializeOptions preparedFiles resumePath
-
-  userForcedOpts <- parseUserOpts forceStrs baseOptions
+  InitializeOptionsResult { .. } <- initializeOptions preparedFiles resumePath forceStrs
 
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . value <$> filledOptions) [0..]
