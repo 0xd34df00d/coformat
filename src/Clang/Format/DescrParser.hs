@@ -38,17 +38,17 @@ braceWrappingKludge :: [ConfigItemT 'Parsed] -> Either String [ConfigItemT 'Pars
 braceWrappingKludge = concatMapM f
   where
     f c@ConfigItem { .. } | name /= ["BraceWrapping"] = pure [c]
-    f ConfigItem { typ = CTEnum { .. } } = pure [ ConfigItem { name = ["BraceWrapping", var], typ = CTBool () }
-                                                | var <- variants
-                                                , isUpper $ T.head var
-                                                ]
+    f ConfigItem { value = CTEnum { .. } } = pure [ ConfigItem { name = ["BraceWrapping", var], value = CTBool () }
+                                                  | var <- variants
+                                                  , isUpper $ T.head var
+                                                  ]
     f _ = Left "Expected BraceWrapping to have (mis)type of CTEnum"
 
 parseItem :: (Cursor, Cursor) -> Either String (ConfigItemT 'Parsed)
 parseItem (header, body) = do
   nameToken <- header @>. [jq|strong|]
   typStr <- header @>. [jq|span.pre|]
-  typ <- parseType nameToken typStr body
+  value <- parseType nameToken typStr body
   let name = [nameToken]
   pure ConfigItem { .. }
 

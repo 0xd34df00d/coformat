@@ -50,17 +50,17 @@ parseOptsDescription path = do
                      Nothing -> throwError "No `BasedOnStyle` option"
                      Just stys -> pure stys
   let varyingOptions = filter ((/= bosKey) . name) supportedOptions
-  case typ baseStyles of
+  case value baseStyles of
        CTEnum { .. } -> pure (variants, varyingOptions)
-       _ -> throwError [i|Unknown type for the `BaseStyles` option: #{typ baseStyles}|]
+       _ -> throwError [i|Unknown type for the `BaseStyles` option: #{value baseStyles}|]
   where
     bosKey = ["BasedOnStyle"]
 
 hardcodedOpts :: [ConfigItemT 'Value]
-hardcodedOpts = [ ConfigItem { name = ["Language"], typ = CTEnum ["Cpp"] "Cpp" }
-                , ConfigItem { name = ["BreakBeforeBraces"], typ = CTEnum ["Custom"] "Custom" }
-                , ConfigItem { name = ["DisableFormat"], typ = CTBool False }
-                , ConfigItem { name = ["SortIncludes"], typ = CTBool False }
+hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
+                , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
+                , ConfigItem { name = ["DisableFormat"], value = CTBool False }
+                , ConfigItem { name = ["SortIncludes"], value = CTBool False }
                 ]
 
 data InitializeOptionsResult = InitializeOptionsResult
@@ -116,10 +116,10 @@ runOptPipeline PipelineOpts { .. } = do
   InitializeOptionsResult { .. } <- initializeOptions preparedFiles resumePath
 
   let categoricalVariables = [ IxedVariable dv idx
-                             | (Just dv, idx) <- zip (typToDV . typ <$> filledOptions) [0..]
+                             | (Just dv, idx) <- zip (typToDV . value <$> filledOptions) [0..]
                              ]
   let integralVariables = [ IxedVariable dv idx
-                          | (Just dv, idx) <- zip (typToIV . typ <$> filledOptions) [0..]
+                          | (Just dv, idx) <- zip (typToIV . value <$> filledOptions) [0..]
                           ]
   let fmtEnv = FmtEnv { constantOpts = hardcodedOpts, .. }
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }

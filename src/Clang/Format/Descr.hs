@@ -33,7 +33,7 @@ deriving instance Eq (ConfigTypeT 'Value)
 
 data ConfigItemT f = ConfigItem
   { name :: [T.Text]
-  , typ :: ConfigTypeT f
+  , value :: ConfigTypeT f
   }
 
 deriving instance Show (ConfigItemT 'Parsed)

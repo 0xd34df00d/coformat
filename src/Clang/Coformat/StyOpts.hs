@@ -24,10 +24,10 @@ data StyOpts = StyOpts
 instance ToJSON StyOpts where
   toJSON StyOpts { .. } = Object $ foldl' f (HM.singleton "BasedOnStyle" $ String basedOnStyle) additionalOpts
     where
-      f hm ConfigItem { .. } = updateRec typ name hm
+      f hm ConfigItem { .. } = updateRec value name hm
 
-      updateRec typ [key] = HM.insert key (toJson typ)
-      updateRec typ (key:rest) = HM.alter (Just . Object . updateRec typ rest . getObj) key
+      updateRec value [key] = HM.insert key (toJson value)
+      updateRec value (key:rest) = HM.alter (Just . Object . updateRec value rest . getObj) key
       updateRec _ [] = id
       getObj = fromMaybe mempty . ((^? _Object) =<<)
 

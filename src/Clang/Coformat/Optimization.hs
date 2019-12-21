@@ -78,8 +78,8 @@ variateAt _ idx opts = [ update idx (updater v') opts | v' <- toList variated ]
   where
     thePrism :: Prism' (ConfigTypeT 'Value) a
     thePrism = varPrism
-    variated = variate $ typ (opts !! idx) ^?! thePrism
-    updater v cfg = cfg { typ = typ cfg & thePrism .~ v }
+    variated = variate $ value (opts !! idx) ^?! thePrism
+    updater v cfg = cfg { value = value cfg & thePrism .~ v }
 
 data OptState = OptState
   { currentOpts :: [ConfigItemT 'Value]
@@ -108,7 +108,7 @@ variateSubset (SomeIxedVariable (IxedVariable (MkDV (_ :: a)) idx) : rest) opts 
 showVariated :: [SomeIxedVariable] -> [ConfigItemT 'Value] -> String
 showVariated vars opts = intercalate ", " [showVar var | var <- vars]
   where
-    showVar (SomeIxedVariable (IxedVariable _ idx)) = [i|#{name $ opts !! idx} -> #{typ $ opts !! idx}|]
+    showVar (SomeIxedVariable (IxedVariable _ idx)) = [i|#{name $ opts !! idx} -> #{value $ opts !! idx}|]
 
 chooseBestSubset :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
                  => Natural -> [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))

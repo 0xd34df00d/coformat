@@ -89,19 +89,19 @@ fillConfigItemsFromObj supported fields = mapM fillConfigItem supported
     fillConfigItem ConfigItem { .. }
       | Nothing <- maybeYamlVal = pure $ Left $ ValueNotFound nameConcatted
       | Just yamlVal <- maybeYamlVal = do
-        val <- case (typ, yamlVal) of
-                    (CTInt _, Number num)
-                        | Just int <- toBoundedInteger num -> pure $ CTInt int
-                    (CTUnsigned _, Number num)
-                        | Just int <- toBoundedInteger num :: Maybe Int
-                        , int >= 0 -> pure $ CTUnsigned $ fromIntegral int
-                    (CTBool _, Bool b) -> pure $ CTBool b
-                    (CTEnum vars _, String s)
-                        | s `elem` vars -> pure $ CTEnum vars s
-                    (CTEnum vars _, Bool b)
-                        | boolAsEnumVar b `elem` vars -> pure $ CTEnum vars $ boolAsEnumVar b
-                    _ -> throwError $ IncompatibleValue nameConcatted typ yamlVal
-        pure $ Right $ ConfigItem { name = name, typ = val }
+        value' <- case (value, yamlVal) of
+                       (CTInt _, Number num)
+                           | Just int <- toBoundedInteger num -> pure $ CTInt int
+                       (CTUnsigned _, Number num)
+                           | Just int <- toBoundedInteger num :: Maybe Int
+                           , int >= 0 -> pure $ CTUnsigned $ fromIntegral int
+                       (CTBool _, Bool b) -> pure $ CTBool b
+                       (CTEnum vars _, String s)
+                           | s `elem` vars -> pure $ CTEnum vars s
+                       (CTEnum vars _, Bool b)
+                           | boolAsEnumVar b `elem` vars -> pure $ CTEnum vars $ boolAsEnumVar b
+                       _ -> throwError $ IncompatibleValue nameConcatted value yamlVal
+        pure $ Right $ ConfigItem { name = name, value = value' }
       where
         nameConcatted = T.intercalate "." name
         maybeYamlVal = HM.lookup nameConcatted fields

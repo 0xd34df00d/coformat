@@ -10,7 +10,7 @@ import Data.Maybe
 import Clang.Format.Descr
 
 filterParsedItems :: [ConfigItemT 'Parsed] -> [ConfigItemT 'Supported]
-filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterType typ
+filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterType value
   where
     filterType = \case
                     CTInt () -> Just $ CTInt ()
@@ -30,5 +30,5 @@ replaceItemsWith l1 l2 = M.elems $ toMap l2 <> toMap l1
 subtractMatching :: [ConfigItemT 'Value] -> [ConfigItemT 'Value] -> [ConfigItemT 'Value]
 subtractMatching minuend subtrahend = filter f minuend
   where
-    f ConfigItem { .. } = (/= Just typ) $ HM.lookup name subMap
-    subMap = HM.fromList [ (name, typ) | ConfigItem { .. } <- subtrahend]
+    f ConfigItem { .. } = (/= Just value) $ HM.lookup name subMap
+    subMap = HM.fromList [ (name, value) | ConfigItem { .. } <- subtrahend]
