@@ -1,8 +1,9 @@
 # Changelog for coformat
 
-## Unreleased changes
+## v0.2.0.0
 
 * Changed the scoring from Levenshtein distance to something more suitable for the task.
+* Allow resuming the optimization process from an existing style file.
 
 ## v0.1.0.0
 
