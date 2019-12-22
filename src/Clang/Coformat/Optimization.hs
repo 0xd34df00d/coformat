@@ -120,11 +120,13 @@ chooseBestSubset subsetSize ixedVariables = do
     let (bestOpts, bestScore) = minimumBy (comparing snd) opt2scores
     when (bestScore < currentScore) $
       logInfoN [i|Total dist for #{showVariated someVarsSubset bestOpts}: #{currentScore} -> #{bestScore}|]
-    pure (bestOpts, bestScore)
-  let (bestOpts, bestScore) = minimumBy (comparing snd) partialResults
-  pure $ if bestScore < currentScore
-          then Just (bestOpts, bestScore)
-          else Nothing
+    pure (bestOpts, bestScore, someVarsSubset)
+  let (bestOpts, bestScore, bestVarsSubset) = minimumBy (comparing (^. _2)) partialResults
+  if bestScore < currentScore
+    then do
+      logInfoN [i|Choosing #{showVariated bestVarsSubset bestOpts}|]
+      pure $ Just (bestOpts, bestScore)
+    else pure Nothing
 
 stepGDGeneric' :: (OptMonad err r m, Has TaskGroup r, Has OptEnv r, MonadState OptState m)
                => Natural -> [OptEnv -> [SomeIxedVariable]] -> m ()
