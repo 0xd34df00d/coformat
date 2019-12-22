@@ -95,7 +95,8 @@ initializeOptions preparedFiles maybeResumePath forceStrs = do
               pure (baseStyle, score)
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
-  stdout <- convert (show @Failure) $ checked [sh|clang-format --style=#{baseStyle} --dump-config|]
+  let formattedBaseSty = BSL.unpack $ formatStyArg $ StyOpts { basedOnStyle = baseStyle, additionalOpts = allFixedOpts }
+  stdout <- convert (show @Failure) $ checked [sh|clang-format --style='#{formattedBaseSty}' --dump-config|]
   baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
 
   let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
