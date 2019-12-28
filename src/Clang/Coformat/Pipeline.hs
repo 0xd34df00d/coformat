@@ -9,10 +9,8 @@ module Clang.Coformat.Pipeline
 
 import qualified Control.Monad.Except.CoHas as EC
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Encoding as TL
 import Control.Concurrent.Async.Pool
 import Control.Lens hiding (Wrapped, Unwrapped)
 import Control.Monad.Except
@@ -27,7 +25,6 @@ import Data.Maybe
 import Data.String.Interpolate.IsString
 import Data.Traversable
 import Numeric.Natural
-import System.Command.QQ
 
 import Clang.Coformat.Optimization
 import Clang.Coformat.Score
@@ -96,9 +93,9 @@ initializeOptions preparedFiles maybeResumePath forceStrs = do
               pure (baseStyle, score)
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
-  let formattedBaseSty = BSL.unpack $ formatStyArg $ StyOpts { basedOnStyle = baseStyle, additionalOpts = allFixedOpts }
-  stdout <- convert (show @Failure) $ checked [sh|clang-format --style='#{formattedBaseSty}' --dump-config|]
-  baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions $ BSL.toStrict $ TL.encodeUtf8 stdout
+  let formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseStyle, additionalOpts = allFixedOpts }
+  stdout <- convert (show @Failure) $ runCommand Cmd { exec = "clang-format", args = [[i|--style=#{formattedBaseSty}|], "--dump-config"] }
+  baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions stdout
 
   let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
                     | otherwise = baseOptions

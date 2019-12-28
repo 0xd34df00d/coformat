@@ -1,14 +1,16 @@
 {-# LANGUAGE DataKinds, ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Language.Coformat.Formatter where
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
 import Control.Monad.Except.CoHas
 import GHC.Generics
+import System.Command
+import System.Exit
 
 import Clang.Format.Descr
 
@@ -32,8 +34,17 @@ data FormatterInfo = FormatterInfo
 
 data Cmd = Cmd
   { exec :: String
-  , args :: [String]
+  , args :: [BS.ByteString]
   } deriving (Show)
+
+runCommand :: FormatterMonad err m => Cmd -> m BS.ByteString
+runCommand Cmd { .. } = do
+  (ec, stdout, stderr) <- liftIO $ command [] exec $ BS.unpack <$> args
+  case ec of ExitSuccess -> pure $ BS.pack $ fromStdout stdout
+             ExitFailure n | n == cfCrashRetCode -> throwError $ FormatterSegfaulted $ T.pack $ fromStderr stderr
+                           | otherwise -> throwError $ FormatterFailure n $ T.pack $ fromStderr stderr
+  where
+    cfCrashRetCode = -8
 
 data Formatter = Formatter
   { formatterInfo :: FormatterInfo
@@ -43,12 +54,12 @@ data Formatter = Formatter
 
 type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
 
-data ExpectedFailure = FormatterSegfaulted TL.Text   -- kek
+data ExpectedFailure = FormatterSegfaulted T.Text   -- kek
   deriving (Eq, Show)
 
 data UnexpectedFailure = FormatterFailure
   { errorCode :: Int
-  , errorOutput :: TL.Text
+  , errorOutput :: T.Text
   } deriving (Eq, Show)
 
 data Failure = ExpectedFailure ExpectedFailure

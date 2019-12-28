@@ -5,10 +5,10 @@
 
 module Clang.Coformat.Optimization where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Encoding as TL
 import Control.Concurrent.Async.Pool
 import Control.Lens
 import Control.Monad.Except.CoHas
@@ -22,7 +22,6 @@ import Data.Ord
 import Data.Proxy
 import Data.String.Interpolate.IsString
 import Numeric.Natural
-import System.Command.QQ
 
 import Clang.Coformat.Score
 import Clang.Coformat.StyOpts
@@ -46,13 +45,10 @@ data OptEnv = OptEnv
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
                => PreparedFile -> String -> BSL.ByteString -> m Score
 runClangFormat prepared logStr formattedSty = do
-  stdout <- checked [sh|clang-format --style='#{unpackedSty}' #{path}|]
-  let dist = calcScore prepared $ BSL.toStrict $ TL.encodeUtf8 stdout
+  stdout <- runCommand Cmd { exec = "clang-format", args = [[i|--style=#{formattedSty}|], BS.pack $ filename prepared] }
+  let dist = calcScore prepared stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure dist
-  where
-    path = filename prepared
-    unpackedSty = BSL.unpack formattedSty
 
 type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has FmtEnv r)
 

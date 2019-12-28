@@ -6,24 +6,11 @@ import qualified Control.Concurrent.Async as A
 import qualified Control.Concurrent.Async.Pool as A.P
 import qualified Control.Monad.Except as E
 import qualified Control.Monad.Reader as R
-import qualified Data.Text.Lazy as TL
 import Control.Monad.Except.CoHas
 import Control.Monad.Logger
 import Control.Monad.Reader.Has
 import Data.Bifunctor
 import Numeric.Natural
-import System.Exit
-
-import Language.Coformat.Formatter
-
-checked :: FormatterMonad err m => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
-checked act = do
-  (ec, stdout, stderr) <- liftIO act
-  case ec of ExitSuccess -> pure stdout
-             ExitFailure n | n == cfCrashRetCode -> throwError $ FormatterSegfaulted stderr
-                           | otherwise -> throwError $ FormatterFailure n stderr
-  where
-    cfCrashRetCode = -8
 
 update :: Int -> (a -> a) -> [a] -> [a]
 update idx f = zipWith z [0..]
