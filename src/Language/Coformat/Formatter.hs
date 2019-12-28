@@ -14,17 +14,17 @@ import GHC.Generics
 import Clang.Format.Descr
 
 data OptsDescription = OptsDescription
-  { knownOptions :: [ConfigItemT 'Supported]
+  { knownOpts :: [ConfigItemT 'Supported]
   , baseStyles :: [T.Text]
   } deriving (Show)
 
-data OptionsSource
-  = StaticOptions OptsDescription
-  | OptionsFromFile FilePath (BS.ByteString -> OptsDescription)
+data OptsSource
+  = StaticOpts OptsDescription
+  | OptsFromFile FilePath (BS.ByteString -> OptsDescription)
 
 data FormatterInfo = FormatterInfo
   { executableName :: String
-  , formatterOptions :: OptionsSource
+  , formatterOpts :: OptsSource
   }
 
 data Cmd = Cmd
