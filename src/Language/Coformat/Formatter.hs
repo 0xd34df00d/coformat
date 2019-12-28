@@ -13,6 +13,19 @@ import GHC.Generics
 
 import Clang.Format.Descr
 
+data FormatterInfo = FormatterInfo
+  { executableName :: String
+  , knownOptions :: forall m. MonadIO m => m [ConfigItemT 'Supported]
+  , baseStyles :: [T.Text]
+  }
+
+type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
+
+data Formatter = Formatter
+  { formatterInfo :: FormatterInfo
+  , formatFile :: forall err m. FormatterMonad err m => T.Text -> [ConfigItemT 'Value] -> FilePath -> m BS.ByteString
+  }
+
 data ExpectedFailure = FormatterSegfaulted TL.Text   -- kek
   deriving (Eq, Show)
 
