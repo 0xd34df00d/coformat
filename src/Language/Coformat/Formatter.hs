@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, RankNTypes, ConstraintKinds #-}
+{-# LANGUAGE DataKinds, ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
@@ -27,12 +27,18 @@ data FormatterInfo = FormatterInfo
   , formatterOptions :: OptionsSource
   }
 
-type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
+data Cmd = Cmd
+  { exec :: String
+  , args :: [String]
+  } deriving (Show)
 
 data Formatter = Formatter
   { formatterInfo :: FormatterInfo
-  , formatFile :: forall err m. FormatterMonad err m => T.Text -> [ConfigItemT 'Value] -> FilePath -> m BS.ByteString
+  , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> Cmd
   }
+
+
+type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
 
 data ExpectedFailure = FormatterSegfaulted TL.Text   -- kek
   deriving (Eq, Show)
