@@ -8,7 +8,6 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Control.Monad.Except.CoHas
-import Control.Monad.IO.Class
 import GHC.Generics
 
 import Clang.Format.Descr
@@ -21,6 +20,10 @@ data OptsDescription = OptsDescription
 data OptsSource
   = StaticOpts OptsDescription
   | OptsFromFile FilePath (BS.ByteString -> Either String OptsDescription)
+
+parseOpts :: MonadIO m => OptsSource -> m (Either String OptsDescription)
+parseOpts (StaticOpts d) = pure $ Right d
+parseOpts (OptsFromFile path parser) = parser <$> liftIO (BS.readFile path)
 
 data FormatterInfo = FormatterInfo
   { executableName :: String
