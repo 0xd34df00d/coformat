@@ -13,10 +13,18 @@ import GHC.Generics
 
 import Clang.Format.Descr
 
+data OptsDescription = OptsDescription
+  { knownOptions :: [ConfigItemT 'Supported]
+  , baseStyles :: [T.Text]
+  } deriving (Show)
+
+data OptionsSource
+  = StaticOptions OptsDescription
+  | OptionsFromFile FilePath (BS.ByteString -> OptsDescription)
+
 data FormatterInfo = FormatterInfo
   { executableName :: String
-  , knownOptions :: forall m. MonadIO m => m [ConfigItemT 'Supported]
-  , baseStyles :: [T.Text]
+  , formatterOptions :: OptionsSource
   }
 
 type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
