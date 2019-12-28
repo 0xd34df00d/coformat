@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module Clang.Coformat.Util where
 
@@ -12,28 +11,12 @@ import Control.Monad.Except.CoHas
 import Control.Monad.Logger
 import Control.Monad.Reader.Has
 import Data.Bifunctor
-import GHC.Generics
 import Numeric.Natural
 import System.Exit
 
-data ExpectedFailure = FormatterSegfaulted TL.Text   -- kek
-  deriving (Eq, Show)
+import Language.Coformat.Formatter
 
-data UnexpectedFailure = FormatterFailure
-  { errorCode :: Int
-  , errorOutput :: TL.Text
-  } deriving (Eq, Show)
-
-data Failure = ExpectedFailure ExpectedFailure
-             | UnexpectedFailure UnexpectedFailure
-             deriving (Eq, Show, Generic, CoHas ExpectedFailure, CoHas UnexpectedFailure)
-
-failuresAreUnexpected :: Failure -> UnexpectedFailure
-failuresAreUnexpected (UnexpectedFailure err) = err
-failuresAreUnexpected (ExpectedFailure (FormatterSegfaulted out)) = FormatterFailure 0 out
-
-checked :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
-        => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
+checked :: FormatterMonad err m => IO (ExitCode, TL.Text, TL.Text) -> m TL.Text
 checked act = do
   (ec, stdout, stderr) <- liftIO act
   case ec of ExitSuccess -> pure stdout

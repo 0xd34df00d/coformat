@@ -38,6 +38,7 @@ import Clang.Format.Descr
 import Clang.Format.Descr.Operations
 import Clang.Format.DescrParser
 import Clang.Format.YamlConversions
+import Language.Coformat.Formatter
 
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)

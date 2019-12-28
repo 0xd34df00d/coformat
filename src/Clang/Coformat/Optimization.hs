@@ -29,6 +29,7 @@ import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
+import Language.Coformat.Formatter
 
 data FmtEnv = FmtEnv
   { baseStyle :: T.Text
