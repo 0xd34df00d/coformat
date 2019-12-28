@@ -20,7 +20,7 @@ data OptsDescription = OptsDescription
 
 data OptsSource
   = StaticOpts OptsDescription
-  | OptsFromFile FilePath (BS.ByteString -> OptsDescription)
+  | OptsFromFile FilePath (BS.ByteString -> Either String OptsDescription)
 
 data FormatterInfo = FormatterInfo
   { executableName :: String
