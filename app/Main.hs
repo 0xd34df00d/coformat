@@ -29,7 +29,8 @@ data Options w = Options
   , output :: w ::: FilePath <?> "Where to save the resulting configuration file"
   } deriving (Generic)
 
-instance ParseRecord (Options Wrapped)
+instance ParseRecord (Options Wrapped) where
+  parseRecord = parseRecordWithModifiers lispCaseModifiers
 
 logOutput :: Maybe Handle
           -> Loc -> LogSource -> LogLevel -> LogStr -> IO ()
