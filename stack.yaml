@@ -3,6 +3,7 @@ packages:
 - .
 extra-deps:
 - can-i-haz-0.3.1.0
+- command-0.1.1
 - dom-selector-0.2.0.1
 - github: 0xd34df00d/command-qq
   commit: 94aa1a1ded746ab0c061e86710071d096081b275

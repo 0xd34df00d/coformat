@@ -22,6 +22,7 @@ dependencies:
 - async-pool
 - bytestring
 - can-i-haz
+- command
 - command-qq
 - containers
 - dom-selector
