@@ -49,14 +49,9 @@ runCommand Cmd { .. } = do
   where
     cfCrashRetCode = -8
 
-class Formatter a where
-  formatterInfo :: proxy a -> FormatterInfo
-
-data SomeFormatter where
-  SomeFormatter :: Formatter a => proxy a -> SomeFormatter
-
-someFormatterInfo :: SomeFormatter -> FormatterInfo
-someFormatterInfo (SomeFormatter fmt) = formatterInfo fmt
+data Formatter where
+  Formatter :: { formatterInfo :: FormatterInfo
+               } -> Formatter
 
 type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
 

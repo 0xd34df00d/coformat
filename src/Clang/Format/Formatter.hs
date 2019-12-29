@@ -9,7 +9,6 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import Control.Monad.Except
 import Data.Bifunctor
 import Data.List
-import Data.Proxy
 import Data.String.Interpolate
 
 import Language.Coformat.Formatter
@@ -18,17 +17,10 @@ import Clang.Format.Descr
 import Clang.Format.Descr.Operations
 import Clang.Format.DescrParser
 
-data ClangFormatter
-
-clangFormatter :: SomeFormatter
-clangFormatter = SomeFormatter (Proxy :: Proxy ClangFormatter)
-
-instance Formatter ClangFormatter where
-  formatterInfo = const info
-
-info :: FormatterInfo
-info = FormatterInfo { .. }
+clangFormatter :: Formatter
+clangFormatter = Formatter { .. }
   where
+    formatterInfo = FormatterInfo { .. }
     executableName = "clang-format"
     formatterOpts = OptsFromFile "data/ClangFormatStyleOptions-9.html" parseOptsDescription
 
