@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, ConstraintKinds #-}
+{-# LANGUAGE DataKinds, ConstraintKinds, GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -32,6 +32,7 @@ data FormatterInfo = FormatterInfo
   { executableName :: String
   , formatterOpts :: OptsSource
   , hardcodedOpts :: [ConfigItemT 'Value]
+  , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> Cmd
   }
 
 data Cmd = Cmd
@@ -48,11 +49,14 @@ runCommand Cmd { .. } = do
   where
     cfCrashRetCode = -8
 
-data Formatter = Formatter
-  { formatterInfo :: FormatterInfo
-  , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> Cmd
-  }
+class Formatter a where
+  formatterInfo :: proxy a -> FormatterInfo
 
+data SomeFormatter where
+  SomeFormatter :: Formatter a => proxy a -> SomeFormatter
+
+someFormatterInfo :: SomeFormatter -> FormatterInfo
+someFormatterInfo (SomeFormatter fmt) = formatterInfo fmt
 
 type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
 

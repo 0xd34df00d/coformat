@@ -44,8 +44,8 @@ data InitializeOptionsResult = InitializeOptionsResult
   }
 
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
-                  => Formatter -> [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
-initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } preparedFiles maybeResumePath forceStrs = do
+                  => SomeFormatter -> [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
+initializeOptions (SomeFormatter formatter) preparedFiles maybeResumePath forceStrs = do
   OptsDescription { .. } <- parseOpts formatterOpts >>= liftEither
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) knownOpts
   userForcedOpts <- parseUserOpts forceStrs knownOpts
@@ -77,6 +77,7 @@ initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } prepare
   pure InitializeOptionsResult { .. }
   where
     hardcodedOptsNames = name <$> hardcodedOpts
+    FormatterInfo { .. } = formatterInfo formatter
 
 parseUserOpts :: (MonadError String m, ParseableConfigState f) => [String] -> [ConfigItemT f] -> m [ConfigItemT 'Value]
 parseUserOpts opts baseOpts = forM opts $ splitStr >=> findBaseOpt >=> uncurry parseConfigValue
@@ -94,7 +95,7 @@ data PipelineOpts = PipelineOpts
   , input :: NonEmpty FilePath
   , taskGroup :: TaskGroup
   , forceStrs :: [String]
-  , formatter :: Formatter
+  , formatter :: SomeFormatter
   }
 
 runOptPipeline :: (MonadError String m, MonadLoggerIO m)
@@ -110,7 +111,7 @@ runOptPipeline PipelineOpts { .. } = do
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . value <$> filledOptions) [0..]
                           ]
-  let constantOpts = hardcodedOpts (formatterInfo formatter) <> userForcedOpts
+  let constantOpts = hardcodedOpts (someFormatterInfo formatter) <> userForcedOpts
   let fmtEnv = FmtEnv { .. }
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
