@@ -23,6 +23,12 @@ clangFormatter = Formatter { .. }
     executableName = "clang-format"
     formatterOpts = OptsFromFile "data/ClangFormatStyleOptions-9.html" parseOptsDescription
 
+    hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
+                    , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
+                    , ConfigItem { name = ["DisableFormat"], value = CTBool False }
+                    , ConfigItem { name = ["SortIncludes"], value = CTBool False }
+                    ]
+
     formatFile baseSty opts path = Cmd { exec = executableName, args = [ "--style=" <> formattedBaseSty, BS.pack path ] }
       where
         formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseSty, additionalOpts = opts }

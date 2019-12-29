@@ -54,13 +54,6 @@ parseOptsDescription path = do
   where
     bosKey = ["BasedOnStyle"]
 
-hardcodedOpts :: [ConfigItemT 'Value]
-hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
-                , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
-                , ConfigItem { name = ["DisableFormat"], value = CTBool False }
-                , ConfigItem { name = ["SortIncludes"], value = CTBool False }
-                ]
-
 data InitializeOptionsResult = InitializeOptionsResult
   { baseStyle :: T.Text
   , baseScore :: Score
@@ -70,8 +63,8 @@ data InitializeOptionsResult = InitializeOptionsResult
   }
 
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
-                  => [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
-initializeOptions preparedFiles maybeResumePath forceStrs = do
+                  => Formatter -> [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
+initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } preparedFiles maybeResumePath forceStrs = do
   (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) allOptions
   userForcedOpts <- parseUserOpts forceStrs allOptions
@@ -128,7 +121,7 @@ runOptPipeline :: (MonadError String m, MonadLoggerIO m)
 runOptPipeline PipelineOpts { .. } = do
   preparedFiles <- mapM prepareFile $ toList input
 
-  InitializeOptionsResult { .. } <- initializeOptions preparedFiles resumePath forceStrs
+  InitializeOptionsResult { .. } <- initializeOptions formatter preparedFiles resumePath forceStrs
 
   let categoricalVariables = [ IxedVariable dv idx
                              | (Just dv, idx) <- zip (typToDV . value <$> filledOptions) [0..]
@@ -136,7 +129,7 @@ runOptPipeline PipelineOpts { .. } = do
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . value <$> filledOptions) [0..]
                           ]
-  let constantOpts = hardcodedOpts <> userForcedOpts
+  let constantOpts = hardcodedOpts (formatterInfo formatter) <> userForcedOpts
   let fmtEnv = FmtEnv { .. }
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore

@@ -31,6 +31,7 @@ parseOpts (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
 data FormatterInfo = FormatterInfo
   { executableName :: String
   , formatterOpts :: OptsSource
+  , hardcodedOpts :: [ConfigItemT 'Value]
   }
 
 data Cmd = Cmd
