@@ -46,7 +46,7 @@ data InitializeOptionsResult = InitializeOptionsResult
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
                   => Formatter -> [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
 initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } preparedFiles maybeResumePath forceStrs = do
-  OptsDescription { .. } <- parseOpts formatterOpts >>= liftEither
+  OptsDescription { .. } <- parseOpts execName formatterOpts >>= liftEither
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) knownOpts
   userForcedOpts <- parseUserOpts forceStrs knownOpts
 
@@ -68,7 +68,7 @@ initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } prepare
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   let formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseStyle, additionalOpts = allFixedOpts }
-  stdout <- convert (show @Failure) $ runCommand Cmd { exec = "clang-format", args = ["--style=" <> formattedBaseSty, "--dump-config"] }
+  stdout <- convert (show @Failure) $ runCommand "clang-format" $ CmdArgs ["--style=" <> formattedBaseSty, "--dump-config"]
   baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions stdout
 
   let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions

@@ -24,29 +24,28 @@ data OptsDescription stage = OptsDescription
 data OptsSource opts
   = StaticOpts opts
   | OptsFromFile FilePath (LBS.ByteString -> Either String opts)
-  | OptsFromCmd Cmd (BS.ByteString -> Either String opts)
+  | OptsFromCmd CmdArgs (BS.ByteString -> Either String opts)
 
-parseOpts :: MonadIO m => OptsSource opts -> m (Either String opts)
-parseOpts (StaticOpts d) = pure $ Right d
-parseOpts (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
-parseOpts (OptsFromCmd cmd parser) = runExceptT $ convert (show @Failure) (runCommand cmd) >>= liftEither . parser
+parseOpts :: MonadIO m => String -> OptsSource opts -> m (Either String opts)
+parseOpts _     (StaticOpts d) = pure $ Right d
+parseOpts _     (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
+parseOpts exec  (OptsFromCmd args parser) = runExceptT $ convert (show @Failure) (runCommand exec args) >>= liftEither . parser
 
 data FormatterInfo = FormatterInfo
-  { executableName :: String
+  { execName :: String
 
   , formatterOpts :: OptsSource (OptsDescription 'Supported)
   , hardcodedOpts :: [ConfigItemT 'Value]
 
-  , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> Cmd
+  , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> CmdArgs
   }
 
-data Cmd = Cmd
-  { exec :: String
-  , args :: [BS.ByteString]
+newtype CmdArgs = CmdArgs
+  { args :: [BS.ByteString]
   } deriving (Show)
 
-runCommand :: FormatterMonad err m => Cmd -> m BS.ByteString
-runCommand Cmd { .. } = do
+runCommand :: FormatterMonad err m => String -> CmdArgs -> m BS.ByteString
+runCommand exec (CmdArgs args) = do
   (ec, stdout, stderr) <- liftIO $ command [] exec $ BS.unpack <$> args
   case ec of ExitSuccess -> pure $ BS.pack $ fromStdout stdout
              ExitFailure n | n == cfCrashRetCode -> throwError $ FormatterSegfaulted $ T.pack $ fromStderr stderr

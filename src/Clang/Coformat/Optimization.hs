@@ -44,7 +44,7 @@ data OptEnv = OptEnv
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
                => PreparedFile -> String -> BS.ByteString -> m Score
 runClangFormat prepared logStr formattedSty = do
-  stdout <- runCommand Cmd { exec = "clang-format", args = ["--style=" <> formattedSty, BS.pack $ filename prepared] }
+  stdout <- runCommand "clang-format" $ CmdArgs ["--style=" <> formattedSty, BS.pack $ filename prepared]
   let dist = calcScore prepared stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure dist
