@@ -39,6 +39,8 @@ data FormatterInfo = FormatterInfo
   , defaultStyleOpts :: T.Text -> [ConfigItemT 'Supported] -> [ConfigItemT 'Value] -> OptsSource [ConfigItemT 'Value]
 
   , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> CmdArgs
+
+  , serializeOptions :: T.Text -> [ConfigItemT 'Value] -> BS.ByteString
   }
 
 newtype CmdArgs = CmdArgs

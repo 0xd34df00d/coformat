@@ -45,6 +45,8 @@ clangFormatter = Formatter { .. }
           where
             formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseSty, additionalOpts = opts }
 
+        serializeOptions baseSty opts = formatClangFormat StyOpts { basedOnStyle = baseSty, additionalOpts = opts }
+
     parseResumeObject = convert (show @FillError) . preprocessYaml PartialConfig
     parseResumeOptions knownOpts resumeObj = do
       baseStyle <- EC.liftMaybe ("Unable to find `BasedOnStyle` key in the resume file" :: String)

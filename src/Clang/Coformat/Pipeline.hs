@@ -24,12 +24,10 @@ import Numeric.Natural
 
 import Clang.Coformat.Optimization
 import Clang.Coformat.Score
-import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
 import Clang.Format.Descr.Operations
-import Clang.Format.YamlConversions
 import Language.Coformat.Formatter
 
 data InitializeOptionsResult = InitializeOptionsResult
@@ -106,7 +104,4 @@ runOptPipeline PipelineOpts { .. } = do
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (fmtEnv, optEnv, taskGroup) $ execStateT (fixGD Nothing 1) optState
-  let finalStyOpts = StyOpts { basedOnStyle = baseStyle
-                             , additionalOpts = constantOpts <> currentOpts finalOptState `subtractMatching` baseOptions
-                             }
-  pure $ formatClangFormat finalStyOpts
+  pure $ serializeOptions (formatterInfo formatter) baseStyle $ constantOpts <> currentOpts finalOptState `subtractMatching` baseOptions
