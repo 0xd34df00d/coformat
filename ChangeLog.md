@@ -1,5 +1,9 @@
 # Changelog for coformat
 
+## Unreleased changes
+
+* Change the casing of flags to be more in line with the common lisp-style.
+
 ## v0.2.1.0
 
 * Allow the user to force-set formatter options.
