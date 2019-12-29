@@ -7,17 +7,14 @@ module Clang.Coformat.Pipeline
 , PipelineOpts(..)
 ) where
 
-import qualified Control.Monad.Except.CoHas as EC
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Control.Concurrent.Async.Pool
-import Control.Lens hiding (Wrapped, Unwrapped)
 import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Reader
 import Control.Monad.State.Strict
-import Data.Aeson.Lens
 import Data.Foldable
 import Data.List.NonEmpty(NonEmpty)
 import Data.Maybe
@@ -50,26 +47,22 @@ initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } prepare
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) knownOpts
   userForcedOpts <- parseUserOpts forceStrs knownOpts
 
-  maybeResumeObj <- for maybeResumePath $ liftIO . BS.readFile
-                                      >=> convert (show @FillError) . preprocessYaml PartialConfig
-  maybeResumeOptions <- for maybeResumeObj $ convert (show @FillError) . collectConfigItems varyingOptions
-
   let allFixedOpts = hardcodedOpts <> userForcedOpts
 
+  maybeResumeObj <- for maybeResumePath $ liftIO . BS.readFile >=> liftEither . parseResumeObject
+  maybeResumeOptions <- for maybeResumeObj $ liftEither . parseResumeOptions varyingOptions
+
   (baseStyle, baseScore) <-
-      case maybeResumeObj of
+      case maybeResumeOptions of
            Nothing -> chooseBaseStyle baseStyles allFixedOpts preparedFiles
-           Just resumeObj -> do
-              baseStyle <- EC.liftMaybe ("Unable to find `BasedOnStyle` key in the resume file" :: String)
-                        $ HM.lookup "BasedOnStyle" resumeObj ^? _Just . _String
-              constantOpts <- convert (show @FillError) $ collectConfigItems varyingOptions resumeObj
+           Just (baseStyle, constantOpts) -> do
               score <- convert (show @Failure) $ flip runReaderT FmtEnv { .. } $ runClangFormatFiles allFixedOpts [i|Calculating the score of the resumed-from style|]
               pure (baseStyle, score)
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   baseOptions <- parseOpts execName $ defaultStyleOpts baseStyle varyingOptions allFixedOpts
 
-  let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
+  let filledOptions | Just (_, resumeOptions) <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
                     | otherwise = baseOptions
 
   pure InitializeOptionsResult { .. }
