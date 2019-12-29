@@ -26,10 +26,10 @@ data OptsSource opts
   | OptsFromFile FilePath (LBS.ByteString -> Either String opts)
   | OptsFromCmd CmdArgs (BS.ByteString -> Either String opts)
 
-parseOpts :: MonadIO m => String -> OptsSource opts -> m (Either String opts)
-parseOpts _     (StaticOpts d) = pure $ Right d
-parseOpts _     (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
-parseOpts exec  (OptsFromCmd args parser) = runExceptT $ convert (show @Failure) (runCommand exec args) >>= liftEither . parser
+parseOpts :: (MonadIO m, MonadError String m) => String -> OptsSource opts -> m opts
+parseOpts _     (StaticOpts d) = pure d
+parseOpts _     (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path) >>= liftEither
+parseOpts exec  (OptsFromCmd args parser) = convert (show @Failure) (runCommand exec args) >>= liftEither . parser
 
 data FormatterInfo = FormatterInfo
   { execName :: String
