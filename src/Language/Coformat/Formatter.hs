@@ -36,6 +36,7 @@ data FormatterInfo = FormatterInfo
 
   , formatterOpts :: OptsSource (OptsDescription 'Supported)
   , hardcodedOpts :: [ConfigItemT 'Value]
+  , defaultStyleOpts :: T.Text -> [ConfigItemT 'Supported] -> [ConfigItemT 'Value] -> OptsSource [ConfigItemT 'Value]
 
   , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> CmdArgs
   }

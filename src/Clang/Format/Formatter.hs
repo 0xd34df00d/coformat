@@ -31,6 +31,11 @@ clangFormatter = Formatter { .. }
                         , ConfigItem { name = ["DisableFormat"], value = CTBool False }
                         , ConfigItem { name = ["SortIncludes"], value = CTBool False }
                         ]
+        defaultStyleOpts sty supported allFixedOpts = OptsFromCmd (CmdArgs args) parser
+          where
+            args = [ "--style=" <> formattedBaseSty, "--dump-config" ]
+            parser = convert (show @FillError) . fillConfigItems supported
+            formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = sty, additionalOpts = allFixedOpts }
 
         formatFile baseSty opts path = CmdArgs { args = [ "--style=" <> formattedBaseSty, BS.pack path ] }
           where

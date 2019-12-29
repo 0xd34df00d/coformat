@@ -67,9 +67,7 @@ initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } prepare
               pure (baseStyle, score)
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
-  let formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseStyle, additionalOpts = allFixedOpts }
-  stdout <- convert (show @Failure) $ runCommand "clang-format" $ CmdArgs ["--style=" <> formattedBaseSty, "--dump-config"]
-  baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions stdout
+  baseOptions <- parseOpts execName (defaultStyleOpts baseStyle varyingOptions allFixedOpts) >>= liftEither
 
   let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
                     | otherwise = baseOptions
