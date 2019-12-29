@@ -120,6 +120,7 @@ data PipelineOpts = PipelineOpts
   , input :: NonEmpty FilePath
   , taskGroup :: TaskGroup
   , forceStrs :: [String]
+  , formatter :: Formatter
   }
 
 runOptPipeline :: (MonadError String m, MonadLoggerIO m)

@@ -18,6 +18,7 @@ import System.IO(IOMode(..), Handle, stderr, withFile)
 import System.Log.FastLogger
 
 import Clang.Coformat.Pipeline
+import Clang.Format.Formatter
 
 data Options w = Options
   { parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
@@ -54,7 +55,11 @@ main = do
 
   res <- withDebugLog $ \maybeLogHandle ->
          withTaskGroup tgSize $ \taskGroup ->
-         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline PipelineOpts { forceStrs = forceOption, .. }
+         (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline PipelineOpts
+                                                                                { forceStrs = forceOption
+                                                                                , formatter = clangFormatter
+                                                                                , ..
+                                                                                }
   case res of
        Left err -> putStrLn err
        Right bs -> BS.writeFile output bs
