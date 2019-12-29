@@ -6,6 +6,7 @@
 module Language.Coformat.Formatter where
 
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Text as T
 import Control.Monad.Except.CoHas
 import GHC.Generics
@@ -21,11 +22,11 @@ data OptsDescription = OptsDescription
 
 data OptsSource
   = StaticOpts OptsDescription
-  | OptsFromFile FilePath (BS.ByteString -> Either String OptsDescription)
+  | OptsFromFile FilePath (LBS.ByteString -> Either String OptsDescription)
 
 parseOpts :: MonadIO m => OptsSource -> m (Either String OptsDescription)
 parseOpts (StaticOpts d) = pure $ Right d
-parseOpts (OptsFromFile path parser) = parser <$> liftIO (BS.readFile path)
+parseOpts (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
 
 data FormatterInfo = FormatterInfo
   { executableName :: String
