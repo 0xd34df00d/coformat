@@ -1,12 +1,11 @@
 {-# LANGUAGE GADTs, DataKinds, TypeApplications, RankNTypes, ScopedTypeVariables, ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections, LambdaCase #-}
+{-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections, LambdaCase, OverloadedStrings #-}
 
 module Clang.Coformat.Optimization where
 
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Control.Concurrent.Async.Pool
@@ -43,9 +42,9 @@ data OptEnv = OptEnv
   }
 
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
-               => PreparedFile -> String -> BSL.ByteString -> m Score
+               => PreparedFile -> String -> BS.ByteString -> m Score
 runClangFormat prepared logStr formattedSty = do
-  stdout <- runCommand Cmd { exec = "clang-format", args = [[i|--style=#{formattedSty}|], BS.pack $ filename prepared] }
+  stdout <- runCommand Cmd { exec = "clang-format", args = ["--style=" <> formattedSty, BS.pack $ filename prepared] }
   let dist = calcScore prepared stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure dist

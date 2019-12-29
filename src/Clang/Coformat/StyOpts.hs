@@ -4,6 +4,7 @@
 
 module Clang.Coformat.StyOpts where
 
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
@@ -40,5 +41,5 @@ instance ToJSON StyOpts where
       toJson (CTBool b) = Bool b
       toJson (CTEnum _ opt) = String opt
 
-formatStyArg :: StyOpts -> BSL.ByteString
-formatStyArg = encode
+formatStyArg :: StyOpts -> BS.ByteString
+formatStyArg = BSL.toStrict . encode

@@ -94,7 +94,7 @@ initializeOptions preparedFiles maybeResumePath forceStrs = do
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
   let formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseStyle, additionalOpts = allFixedOpts }
-  stdout <- convert (show @Failure) $ runCommand Cmd { exec = "clang-format", args = [[i|--style=#{formattedBaseSty}|], "--dump-config"] }
+  stdout <- convert (show @Failure) $ runCommand Cmd { exec = "clang-format", args = ["--style=" <> formattedBaseSty, "--dump-config"] }
   baseOptions <- convert (show @FillError) $ fillConfigItems varyingOptions stdout
 
   let filledOptions | Just resumeOptions <- maybeResumeOptions = baseOptions `replaceItemsWith` resumeOptions
