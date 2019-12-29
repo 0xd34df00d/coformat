@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, TypeApplications, DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards, QuasiQuotes, OverloadedStrings #-}
 
@@ -37,7 +37,7 @@ clangFormatter = Formatter { .. }
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)
 
-parseOptsDescription :: LBS.ByteString -> Either String OptsDescription
+parseOptsDescription :: LBS.ByteString -> Either String (OptsDescription 'Supported)
 parseOptsDescription contents = do
   parseResult <- liftEither' "Unable to parse the file: " $ parseDescr contents
   let supportedOptions = filterParsedItems parseResult

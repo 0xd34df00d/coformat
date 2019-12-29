@@ -15,23 +15,25 @@ import System.Exit
 
 import Clang.Format.Descr
 
-data OptsDescription = OptsDescription
-  { knownOpts :: [ConfigItemT 'Supported]
+data OptsDescription stage = OptsDescription
+  { knownOpts :: [ConfigItemT stage]
   , baseStyles :: [T.Text]
-  } deriving (Show)
+  }
 
-data OptsSource
-  = StaticOpts OptsDescription
-  | OptsFromFile FilePath (LBS.ByteString -> Either String OptsDescription)
+data OptsSource stage
+  = StaticOpts (OptsDescription stage)
+  | OptsFromFile FilePath (LBS.ByteString -> Either String (OptsDescription stage))
 
-parseOpts :: MonadIO m => OptsSource -> m (Either String OptsDescription)
+parseOpts :: MonadIO m => OptsSource stage -> m (Either String (OptsDescription stage))
 parseOpts (StaticOpts d) = pure $ Right d
 parseOpts (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
 
 data FormatterInfo = FormatterInfo
   { executableName :: String
-  , formatterOpts :: OptsSource
+
+  , formatterOpts :: OptsSource 'Supported
   , hardcodedOpts :: [ConfigItemT 'Value]
+
   , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> Cmd
   }
 
