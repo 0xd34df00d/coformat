@@ -4,9 +4,13 @@
 
 module Clang.Format.Formatter(clangFormatter) where
 
+import qualified Control.Monad.Except.CoHas as EC
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.HashMap.Strict as HM
+import Control.Lens
 import Control.Monad.Except
+import Data.Aeson.Lens
 import Data.Bifunctor
 import Data.List
 import Data.String.Interpolate
@@ -42,7 +46,11 @@ clangFormatter = Formatter { .. }
             formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseSty, additionalOpts = opts }
 
     parseResumeObject = convert (show @FillError) . preprocessYaml PartialConfig
-    parseResumeOptions opts = convert (show @FillError) . collectConfigItems opts
+    parseResumeOptions knownOpts resumeObj = do
+      baseStyle <- EC.liftMaybe ("Unable to find `BasedOnStyle` key in the resume file" :: String)
+                $ HM.lookup "BasedOnStyle" resumeObj ^? _Just . _String
+      opts <- convert (show @FillError) $ collectConfigItems knownOpts resumeObj
+      pure (baseStyle, opts)
 
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)

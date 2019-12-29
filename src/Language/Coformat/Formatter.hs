@@ -58,7 +58,7 @@ data Formatter where
   Formatter :: forall resumeObj.
                { formatterInfo :: FormatterInfo
                , parseResumeObject :: BS.ByteString -> Either String resumeObj
-               , parseResumeOptions :: [ConfigItemT 'Supported] -> resumeObj -> Either String [ConfigItemT 'Value]
+               , parseResumeOptions :: [ConfigItemT 'Supported] -> resumeObj -> Either String (T.Text, [ConfigItemT 'Value])
                } -> Formatter
 
 type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
