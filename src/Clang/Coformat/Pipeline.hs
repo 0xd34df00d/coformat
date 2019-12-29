@@ -18,7 +18,6 @@ import Control.Monad.Logger
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Data.Aeson.Lens
-import Data.Bifunctor
 import Data.Foldable
 import Data.List.NonEmpty(NonEmpty)
 import Data.Maybe
@@ -33,26 +32,8 @@ import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
 import Clang.Format.Descr.Operations
-import Clang.Format.DescrParser
 import Clang.Format.YamlConversions
 import Language.Coformat.Formatter
-
-liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
-liftEither' context = liftEither . first ((context <>) . show)
-
-parseOptsDescription :: (MonadError String m, MonadIO m) => FilePath -> m ([T.Text], [ConfigItemT 'Supported])
-parseOptsDescription path = do
-  parseResult <- liftIO $ parseFile path
-  supportedOptions <- filterParsedItems <$> liftEither' "Unable to parse the file: " parseResult
-  baseStyles <- case find ((== bosKey) . name) supportedOptions of
-                     Nothing -> throwError "No `BasedOnStyle` option"
-                     Just stys -> pure stys
-  let varyingOptions = filter ((/= bosKey) . name) supportedOptions
-  case value baseStyles of
-       CTEnum { .. } -> pure (variants, varyingOptions)
-       _ -> throwError [i|Unknown type for the `BaseStyles` option: #{value baseStyles}|]
-  where
-    bosKey = ["BasedOnStyle"]
 
 data InitializeOptionsResult = InitializeOptionsResult
   { baseStyle :: T.Text
@@ -65,9 +46,9 @@ data InitializeOptionsResult = InitializeOptionsResult
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
                   => Formatter -> [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
 initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } preparedFiles maybeResumePath forceStrs = do
-  (baseStyles, allOptions) <- parseOptsDescription "data/ClangFormatStyleOptions-9.html"
-  let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) allOptions
-  userForcedOpts <- parseUserOpts forceStrs allOptions
+  OptsDescription { .. } <- parseOpts formatterOpts >>= liftEither
+  let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) knownOpts
+  userForcedOpts <- parseUserOpts forceStrs knownOpts
 
   maybeResumeObj <- for maybeResumePath $ liftIO . BS.readFile
                                       >=> convert (show @FillError) . preprocessYaml PartialConfig
