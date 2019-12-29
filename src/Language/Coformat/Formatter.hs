@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, ConstraintKinds, GADTs, RankNTypes #-}
+{-# LANGUAGE DataKinds, ConstraintKinds, GADTs, RankNTypes, TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -10,9 +10,10 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Text as T
 import Control.Monad.Except.CoHas
 import GHC.Generics
-import System.Command
+import System.Command hiding(cmd)
 import System.Exit
 
+import Clang.Coformat.Util
 import Clang.Format.Descr
 
 data OptsDescription stage = OptsDescription
@@ -23,10 +24,12 @@ data OptsDescription stage = OptsDescription
 data OptsSource stage
   = StaticOpts (OptsDescription stage)
   | OptsFromFile FilePath (LBS.ByteString -> Either String (OptsDescription stage))
+  | OptsFromCmd Cmd (BS.ByteString -> Either String (OptsDescription stage))
 
 parseOpts :: MonadIO m => OptsSource stage -> m (Either String (OptsDescription stage))
 parseOpts (StaticOpts d) = pure $ Right d
 parseOpts (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
+parseOpts (OptsFromCmd cmd parser) = runExceptT $ convert (show @Failure) (runCommand cmd) >>= liftEither . parser
 
 data FormatterInfo = FormatterInfo
   { executableName :: String
