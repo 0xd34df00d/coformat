@@ -21,12 +21,12 @@ data OptsDescription stage = OptsDescription
   , baseStyles :: [T.Text]
   }
 
-data OptsSource stage
-  = StaticOpts (OptsDescription stage)
-  | OptsFromFile FilePath (LBS.ByteString -> Either String (OptsDescription stage))
-  | OptsFromCmd Cmd (BS.ByteString -> Either String (OptsDescription stage))
+data OptsSource opts
+  = StaticOpts opts
+  | OptsFromFile FilePath (LBS.ByteString -> Either String opts)
+  | OptsFromCmd Cmd (BS.ByteString -> Either String opts)
 
-parseOpts :: MonadIO m => OptsSource stage -> m (Either String (OptsDescription stage))
+parseOpts :: MonadIO m => OptsSource opts -> m (Either String opts)
 parseOpts (StaticOpts d) = pure $ Right d
 parseOpts (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile path)
 parseOpts (OptsFromCmd cmd parser) = runExceptT $ convert (show @Failure) (runCommand cmd) >>= liftEither . parser
@@ -34,7 +34,7 @@ parseOpts (OptsFromCmd cmd parser) = runExceptT $ convert (show @Failure) (runCo
 data FormatterInfo = FormatterInfo
   { executableName :: String
 
-  , formatterOpts :: OptsSource 'Supported
+  , formatterOpts :: OptsSource (OptsDescription 'Supported)
   , hardcodedOpts :: [ConfigItemT 'Value]
 
   , formatFile :: T.Text -> [ConfigItemT 'Value] -> FilePath -> Cmd
