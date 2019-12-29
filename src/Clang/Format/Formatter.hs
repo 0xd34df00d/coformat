@@ -13,26 +13,31 @@ import Data.String.Interpolate
 
 import Language.Coformat.Formatter
 import Clang.Coformat.StyOpts
+import Clang.Coformat.Util
 import Clang.Format.Descr
 import Clang.Format.Descr.Operations
 import Clang.Format.DescrParser
+import Clang.Format.YamlConversions
 
 clangFormatter :: Formatter
 clangFormatter = Formatter { .. }
   where
     formatterInfo = FormatterInfo { .. }
-    executableName = "clang-format"
-    formatterOpts = OptsFromFile "data/ClangFormatStyleOptions-9.html" parseOptsDescription
-
-    hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
-                    , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
-                    , ConfigItem { name = ["DisableFormat"], value = CTBool False }
-                    , ConfigItem { name = ["SortIncludes"], value = CTBool False }
-                    ]
-
-    formatFile baseSty opts path = Cmd { exec = executableName, args = [ "--style=" <> formattedBaseSty, BS.pack path ] }
       where
-        formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseSty, additionalOpts = opts }
+        executableName = "clang-format"
+        formatterOpts = OptsFromFile "data/ClangFormatStyleOptions-9.html" parseOptsDescription
+        hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
+                        , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
+                        , ConfigItem { name = ["DisableFormat"], value = CTBool False }
+                        , ConfigItem { name = ["SortIncludes"], value = CTBool False }
+                        ]
+
+        formatFile baseSty opts path = Cmd { exec = executableName, args = [ "--style=" <> formattedBaseSty, BS.pack path ] }
+          where
+            formattedBaseSty = formatStyArg $ StyOpts { basedOnStyle = baseSty, additionalOpts = opts }
+
+    parseResumeObject = convert (show @FillError) . preprocessYaml PartialConfig
+    parseResumeOptions opts = convert (show @FillError) . collectConfigItems opts
 
 liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftEither' context = liftEither . first ((context <>) . show)

@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, ConstraintKinds, GADTs #-}
+{-# LANGUAGE DataKinds, ConstraintKinds, GADTs, RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -52,7 +52,10 @@ runCommand Cmd { .. } = do
     cfCrashRetCode = -8
 
 data Formatter where
-  Formatter :: { formatterInfo :: FormatterInfo
+  Formatter :: forall resumeObj.
+               { formatterInfo :: FormatterInfo
+               , parseResumeObject :: BS.ByteString -> Either String resumeObj
+               , parseResumeOptions :: [ConfigItemT 'Supported] -> resumeObj -> Either String [ConfigItemT 'Value]
                } -> Formatter
 
 type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
