@@ -54,7 +54,7 @@ initializeOptions Formatter { formatterInfo = formatterInfo@FormatterInfo { .. }
       case maybeResumeOptions of
            Nothing -> chooseBaseStyle formatterInfo baseStyles allFixedOpts preparedFiles
            Just (baseStyle, constantOpts) -> do
-              let fmtAct = runClangFormatFiles allFixedOpts [i|Calculating the score of the resumed-from style|]
+              let fmtAct = runFormatFiles allFixedOpts [i|Calculating the score of the resumed-from style|]
               score <- convert (show @Failure) $ runReaderT fmtAct FmtEnv { .. }
               pure (baseStyle, score)
 

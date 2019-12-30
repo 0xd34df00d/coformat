@@ -40,9 +40,9 @@ data OptEnv = OptEnv
   , maxSubsetSize :: Natural
   }
 
-runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
-               => FormatterInfo -> PreparedFile -> String -> T.Text -> [ConfigItemT 'Value] -> m Score
-runClangFormat FormatterInfo { .. } prepared logStr baseSty opts = do
+runFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
+          => FormatterInfo -> PreparedFile -> String -> T.Text -> [ConfigItemT 'Value] -> m Score
+runFormat FormatterInfo { .. } prepared logStr baseSty opts = do
   stdout <- runCommand execName $ formatFile baseSty opts $ filename prepared
   let dist = calcScore prepared stdout
   logDebugN [i|#{logStr}: #{dist}|]
@@ -50,17 +50,17 @@ runClangFormat FormatterInfo { .. } prepared logStr baseSty opts = do
 
 type OptMonad err r m = (MonadLoggerIO m, MonadError err m, CoHas UnexpectedFailure err, MonadReader r m, Has FmtEnv r)
 
-runClangFormatFiles :: (OptMonad err r m, CoHas ExpectedFailure err)
-                    => [ConfigItemT 'Value] -> String -> m Score
-runClangFormatFiles varOpts logStr = do
+runFormatFiles :: (OptMonad err r m, CoHas ExpectedFailure err)
+               => [ConfigItemT 'Value] -> String -> m Score
+runFormatFiles varOpts logStr = do
   FmtEnv { .. } <- ask
-  fmap mconcat $ forM preparedFiles $ \prepared -> runClangFormat formatterInfo prepared [i|#{logStr} at #{filename prepared}|] baseStyle $ constantOpts <> varOpts
+  fmap mconcat $ forM preparedFiles $ \prepared -> runFormat formatterInfo prepared [i|#{logStr} at #{filename prepared}|] baseStyle $ constantOpts <> varOpts
 
 chooseBaseStyle :: (MonadError String m, MonadLoggerIO m)
                 => FormatterInfo -> [T.Text] -> [ConfigItemT 'Value] -> [PreparedFile] -> m (T.Text, Score)
 chooseBaseStyle formatter baseStyles predefinedOpts files = do
   sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
-    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat formatter file [i|Initial guess for #{sty} at #{filename file}|] sty predefinedOpts
+    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runFormat formatter file [i|Initial guess for #{sty} at #{filename file}|] sty predefinedOpts
   let accumulated = HM.toList $ HM.fromListWith (<>) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
@@ -110,7 +110,7 @@ chooseBestSubset subsetSize ixedVariables = do
   FmtEnv { .. } <- ask
   partialResults <- forConcurrentlyPooled (subsetsN subsetSize ixedVariables) $ \someVarsSubset -> do
     opt2scores <- forM (variateSubset someVarsSubset currentOpts) $ \opts' ->
-      fmap (opts',) $ dropExpectedFailures $ runClangFormatFiles opts' $ showVariated someVarsSubset opts'
+      fmap (opts',) $ dropExpectedFailures $ runFormatFiles opts' $ showVariated someVarsSubset opts'
     let (bestOpts, bestScore) = minimumBy (comparing snd) opt2scores
     when (bestScore < currentScore) $
       logInfoN [i|Total dist for #{showVariated someVarsSubset bestOpts}: #{currentScore} -> #{bestScore}|]
