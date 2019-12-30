@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds, GADTs #-}
 {-# LANGUAGE TypeApplications, OverloadedStrings, RecordWildCards, QuasiQuotes #-}
 
-module Clang.Coformat.Pipeline
+module Language.Coformat.Pipeline
 ( runOptPipeline
 , PipelineOpts(..)
 ) where
@@ -22,13 +22,13 @@ import Data.String.Interpolate.IsString
 import Data.Traversable
 import Numeric.Natural
 
-import Clang.Coformat.Optimization
-import Clang.Coformat.Score
-import Clang.Coformat.Util
-import Clang.Coformat.Variables
-import Clang.Format.Descr
-import Clang.Format.Descr.Operations
+import Language.Coformat.Descr
+import Language.Coformat.Descr.Operations
 import Language.Coformat.Formatter
+import Language.Coformat.Optimization
+import Language.Coformat.Score
+import Language.Coformat.Util
+import Language.Coformat.Variables
 
 data InitializeOptionsResult = InitializeOptionsResult
   { baseStyle :: T.Text

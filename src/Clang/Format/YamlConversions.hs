@@ -25,8 +25,8 @@ import Data.Yaml
 import Data.Yaml.Pretty
 import GHC.Generics
 
-import Clang.Format.Descr
 import Clang.Format.StyOpts
+import Language.Coformat.Descr
 
 data FillError
   = YamlParseError ParseException

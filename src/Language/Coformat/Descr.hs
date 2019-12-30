@@ -2,7 +2,7 @@
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
 {-# LANGUAGE Strict #-}
 
-module Clang.Format.Descr where
+module Language.Coformat.Descr where
 
 import qualified Data.Text as T
 import Data.Void

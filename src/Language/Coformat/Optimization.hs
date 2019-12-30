@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes, RecordWildCards, TupleSections, LambdaCase, OverloadedStrings #-}
 
-module Clang.Coformat.Optimization where
+module Language.Coformat.Optimization where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
@@ -21,11 +21,11 @@ import Data.Proxy
 import Data.String.Interpolate.IsString
 import Numeric.Natural
 
-import Clang.Coformat.Score
-import Clang.Coformat.Util
-import Clang.Coformat.Variables
-import Clang.Format.Descr
+import Language.Coformat.Descr
 import Language.Coformat.Formatter
+import Language.Coformat.Score
+import Language.Coformat.Util
+import Language.Coformat.Variables
 
 data FmtEnv = FmtEnv
   { baseStyle :: T.Text

@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
 
-module Clang.Coformat.Util where
+module Language.Coformat.Util where
 
 import qualified Control.Concurrent.Async as A
 import qualified Control.Concurrent.Async.Pool as A.P

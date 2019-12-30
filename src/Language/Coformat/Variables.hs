@@ -3,7 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 
-module Clang.Coformat.Variables where
+module Language.Coformat.Variables where
 
 import qualified Data.Text as T
 import Control.Lens
@@ -11,7 +11,7 @@ import Control.Monad
 import Data.Kind
 import Numeric.Natural
 
-import Clang.Format.Descr
+import Language.Coformat.Descr
 
 data KnownVariateType = Categorical | Integral
 

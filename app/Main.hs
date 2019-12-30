@@ -17,8 +17,8 @@ import Options.Generic
 import System.IO(IOMode(..), Handle, stderr, withFile)
 import System.Log.FastLogger
 
-import Clang.Coformat.Pipeline
 import Clang.Format.Formatter
+import Language.Coformat.Pipeline
 
 data Options w = Options
   { parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"

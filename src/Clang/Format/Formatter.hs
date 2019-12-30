@@ -15,13 +15,13 @@ import Data.Bifunctor
 import Data.List
 import Data.String.Interpolate
 
-import Language.Coformat.Formatter
-import Clang.Coformat.Util
-import Clang.Format.Descr
-import Clang.Format.Descr.Operations
 import Clang.Format.DescrParser
 import Clang.Format.StyOpts
 import Clang.Format.YamlConversions
+import Language.Coformat.Descr
+import Language.Coformat.Descr.Operations
+import Language.Coformat.Formatter
+import Language.Coformat.Util
 
 clangFormatter :: Formatter
 clangFormatter = Formatter { .. }

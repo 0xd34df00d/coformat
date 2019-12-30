@@ -15,7 +15,7 @@ import Data.List
 import Data.Maybe
 import Data.Void
 
-import Clang.Format.Descr
+import Language.Coformat.Descr
 
 data StyOpts = StyOpts
   { basedOnStyle :: T.Text

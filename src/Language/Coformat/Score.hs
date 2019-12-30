@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric, DerivingVia #-}
 {-# LANGUAGE RecordWildCards, QuasiQuotes #-}
 
-module Clang.Coformat.Score
+module Language.Coformat.Score
 ( Score
 , calcScore
 

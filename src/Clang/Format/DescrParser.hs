@@ -18,7 +18,7 @@ import Text.XML.Scraping
 import Text.XML.Selector.TH
 import Text.XML.Selector.Types
 
-import Clang.Format.Descr
+import Language.Coformat.Descr
 
 parseDescr :: LBS.ByteString -> Either String [ConfigItemT 'Parsed]
 parseDescr = parseCursor . fromDocument . parseLBS

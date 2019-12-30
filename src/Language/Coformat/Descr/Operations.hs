@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards, LambdaCase, QuasiQuotes, OverloadedStrings #-}
 
-module Clang.Format.Descr.Operations where
+module Language.Coformat.Descr.Operations where
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as M
@@ -15,7 +15,7 @@ import Data.Typeable
 import Data.Void
 import Text.Read
 
-import Clang.Format.Descr
+import Language.Coformat.Descr
 
 filterParsedItems :: [ConfigItemT 'Parsed] -> [ConfigItemT 'Supported]
 filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterType value

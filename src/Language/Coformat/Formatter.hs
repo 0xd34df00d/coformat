@@ -13,8 +13,8 @@ import GHC.Generics
 import System.Command hiding(cmd)
 import System.Exit
 
-import Clang.Coformat.Util
-import Clang.Format.Descr
+import Language.Coformat.Descr
+import Language.Coformat.Util
 
 data OptsDescription stage = OptsDescription
   { knownOpts :: [ConfigItemT stage]
