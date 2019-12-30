@@ -1,7 +1,8 @@
 # Changelog for coformat
 
-## Unreleased changes
+## v0.3.0.0
 
+* A fairly major refactoring: isolated the description of the formatters.
 * Change the casing of flags to be more in line with the common lisp-style.
 
 ## v0.2.1.0
