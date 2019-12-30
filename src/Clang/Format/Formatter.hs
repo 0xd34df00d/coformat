@@ -16,11 +16,11 @@ import Data.List
 import Data.String.Interpolate
 
 import Language.Coformat.Formatter
-import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Format.Descr
 import Clang.Format.Descr.Operations
 import Clang.Format.DescrParser
+import Clang.Format.StyOpts
 import Clang.Format.YamlConversions
 
 clangFormatter :: Formatter

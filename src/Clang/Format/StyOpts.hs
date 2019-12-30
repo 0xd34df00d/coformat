@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts, GADTs #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
-module Clang.Coformat.StyOpts where
+module Clang.Format.StyOpts where
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
