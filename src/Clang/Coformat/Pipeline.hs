@@ -88,7 +88,7 @@ data PipelineOpts = PipelineOpts
 
 runOptPipeline :: (MonadError String m, MonadLoggerIO m)
                => PipelineOpts -> m BS.ByteString
-runOptPipeline PipelineOpts { .. } = do
+runOptPipeline PipelineOpts { formatter = formatter@Formatter { .. }, .. } = do
   preparedFiles <- mapM prepareFile $ toList input
 
   InitializeOptionsResult { .. } <- initializeOptions formatter preparedFiles resumePath forceStrs
@@ -99,9 +99,9 @@ runOptPipeline PipelineOpts { .. } = do
   let integralVariables = [ IxedVariable dv idx
                           | (Just dv, idx) <- zip (typToIV . value <$> filledOptions) [0..]
                           ]
-  let constantOpts = hardcodedOpts (formatterInfo formatter) <> userForcedOpts
+  let constantOpts = hardcodedOpts formatterInfo <> userForcedOpts
   let fmtEnv = FmtEnv { .. }
   let optEnv = OptEnv { maxSubsetSize = fromMaybe 1 maxSubsetSize, .. }
   let optState = initOptState filledOptions baseScore
   finalOptState <- convert (show @UnexpectedFailure) $ flip runReaderT (fmtEnv, optEnv, taskGroup) $ execStateT (fixGD Nothing 1) optState
-  pure $ serializeOptions (formatterInfo formatter) baseStyle $ constantOpts <> currentOpts finalOptState `subtractMatching` baseOptions
+  pure $ serializeOptions formatterInfo baseStyle $ constantOpts <> currentOpts finalOptState `subtractMatching` baseOptions
