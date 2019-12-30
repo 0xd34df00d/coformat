@@ -23,6 +23,7 @@ import Numeric.Natural
 
 import Language.Coformat.Descr
 import Language.Coformat.Formatter
+import Language.Coformat.Formatter.Failure
 import Language.Coformat.Score
 import Language.Coformat.Util
 import Language.Coformat.Variables

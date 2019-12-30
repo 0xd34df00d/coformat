@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds, GADTs, RankNTypes, TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Language.Coformat.Formatter where
@@ -9,11 +8,11 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Text as T
 import Control.Monad.Except.CoHas
-import GHC.Generics
 import System.Command hiding(cmd)
 import System.Exit
 
 import Language.Coformat.Descr
+import Language.Coformat.Formatter.Failure
 import Language.Coformat.Util
 
 data OptsDescription stage = OptsDescription
@@ -63,19 +62,3 @@ data Formatter where
                , parseResumeObject :: BS.ByteString -> Either String resumeObj
                , parseResumeOptions :: [ConfigItemT 'Supported] -> resumeObj -> Either String (T.Text, [ConfigItemT 'Value])
                } -> Formatter
-
-data ExpectedFailure = FormatterSegfaulted T.Text   -- kek
-  deriving (Eq, Show)
-
-data UnexpectedFailure = FormatterFailure
-  { errorCode :: Int
-  , errorOutput :: T.Text
-  } deriving (Eq, Show)
-
-data Failure = ExpectedFailure ExpectedFailure
-             | UnexpectedFailure UnexpectedFailure
-             deriving (Eq, Show, Generic, CoHas ExpectedFailure, CoHas UnexpectedFailure)
-
-failuresAreUnexpected :: Failure -> UnexpectedFailure
-failuresAreUnexpected (UnexpectedFailure err) = err
-failuresAreUnexpected (ExpectedFailure (FormatterSegfaulted out)) = FormatterFailure 0 out
