@@ -5,7 +5,6 @@
 
 module Clang.Coformat.Optimization where
 
-import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Control.Concurrent.Async.Pool
@@ -23,7 +22,6 @@ import Data.String.Interpolate.IsString
 import Numeric.Natural
 
 import Clang.Coformat.Score
-import Clang.Coformat.StyOpts
 import Clang.Coformat.Util
 import Clang.Coformat.Variables
 import Clang.Format.Descr
@@ -33,6 +31,7 @@ data FmtEnv = FmtEnv
   { baseStyle :: T.Text
   , preparedFiles :: [PreparedFile]
   , constantOpts :: [ConfigItemT 'Value]
+  , formatterInfo :: FormatterInfo
   }
 
 data OptEnv = OptEnv
@@ -42,9 +41,9 @@ data OptEnv = OptEnv
   }
 
 runClangFormat :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m, MonadLogger m)
-               => PreparedFile -> String -> BS.ByteString -> m Score
-runClangFormat prepared logStr formattedSty = do
-  stdout <- runCommand "clang-format" $ CmdArgs ["--style=" <> formattedSty, BS.pack $ filename prepared]
+               => FormatterInfo -> PreparedFile -> String -> T.Text -> [ConfigItemT 'Value] -> m Score
+runClangFormat FormatterInfo { .. } prepared logStr baseSty opts = do
+  stdout <- runCommand execName $ formatFile baseSty opts $ filename prepared
   let dist = calcScore prepared stdout
   logDebugN [i|#{logStr}: #{dist}|]
   pure dist
@@ -55,15 +54,13 @@ runClangFormatFiles :: (OptMonad err r m, CoHas ExpectedFailure err)
                     => [ConfigItemT 'Value] -> String -> m Score
 runClangFormatFiles varOpts logStr = do
   FmtEnv { .. } <- ask
-  let sty = StyOpts { basedOnStyle = baseStyle, additionalOpts = constantOpts <> varOpts }
-  let formattedSty = formatStyArg sty
-  fmap mconcat $ forM preparedFiles $ \prepared -> runClangFormat prepared [i|#{logStr} at #{filename prepared}|] formattedSty
+  fmap mconcat $ forM preparedFiles $ \prepared -> runClangFormat formatterInfo prepared [i|#{logStr} at #{filename prepared}|] baseStyle $ constantOpts <> varOpts
 
-chooseBaseStyle :: (MonadError String m, MonadLoggerIO m) => [T.Text] -> [ConfigItemT 'Value] -> [PreparedFile] -> m (T.Text, Score)
-chooseBaseStyle baseStyles predefinedOpts files = do
-  sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) -> do
-    let formattedArg = formatStyArg StyOpts { basedOnStyle = sty, additionalOpts = predefinedOpts }
-    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat file [i|Initial guess for #{sty} at #{filename file}|] formattedArg
+chooseBaseStyle :: (MonadError String m, MonadLoggerIO m)
+                => FormatterInfo -> [T.Text] -> [ConfigItemT 'Value] -> [PreparedFile] -> m (T.Text, Score)
+chooseBaseStyle formatter baseStyles predefinedOpts files = do
+  sty2dists <- forConcurrently' ((,) <$> baseStyles <*> files) $ \(sty, file) ->
+    convert (show @(Either ExpectedFailure UnexpectedFailure)) $ (sty,) <$> runClangFormat formatter file [i|Initial guess for #{sty} at #{filename file}|] sty predefinedOpts
   let accumulated = HM.toList $ HM.fromListWith (<>) sty2dists
   forM_ accumulated $ \(sty, acc) -> logInfoN [i|Initial accumulated guess for #{sty}: #{acc}|]
   pure $ minimumBy (comparing snd) accumulated
@@ -110,6 +107,7 @@ chooseBestSubset :: (OptMonad err r m, Has OptState r, Has TaskGroup r)
                  => Natural -> [SomeIxedVariable] -> m (Maybe ([ConfigItemT 'Value], Score))
 chooseBestSubset subsetSize ixedVariables = do
   OptState { .. } <- ask
+  FmtEnv { .. } <- ask
   partialResults <- forConcurrentlyPooled (subsetsN subsetSize ixedVariables) $ \someVarsSubset -> do
     opt2scores <- forM (variateSubset someVarsSubset currentOpts) $ \opts' ->
       fmap (opts',) $ dropExpectedFailures $ runClangFormatFiles opts' $ showVariated someVarsSubset opts'

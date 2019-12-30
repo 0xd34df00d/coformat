@@ -40,7 +40,7 @@ data InitializeOptionsResult = InitializeOptionsResult
 
 initializeOptions :: (MonadError String m, MonadLoggerIO m)
                   => Formatter -> [PreparedFile] -> Maybe FilePath -> [String] -> m InitializeOptionsResult
-initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } preparedFiles maybeResumePath forceStrs = do
+initializeOptions Formatter { formatterInfo = formatterInfo@FormatterInfo { .. }, .. } preparedFiles maybeResumePath forceStrs = do
   OptsDescription { .. } <- parseOpts execName formatterOpts
   let varyingOptions = filter (not . (`elem` hardcodedOptsNames) . name) knownOpts
   userForcedOpts <- parseUserOpts forceStrs knownOpts
@@ -52,9 +52,10 @@ initializeOptions Formatter { formatterInfo = FormatterInfo { .. }, .. } prepare
 
   (baseStyle, baseScore) <-
       case maybeResumeOptions of
-           Nothing -> chooseBaseStyle baseStyles allFixedOpts preparedFiles
+           Nothing -> chooseBaseStyle formatterInfo baseStyles allFixedOpts preparedFiles
            Just (baseStyle, constantOpts) -> do
-              score <- convert (show @Failure) $ flip runReaderT FmtEnv { .. } $ runClangFormatFiles allFixedOpts [i|Calculating the score of the resumed-from style|]
+              let fmtAct = runClangFormatFiles allFixedOpts [i|Calculating the score of the resumed-from style|]
+              score <- convert (show @Failure) $ runReaderT fmtAct FmtEnv { .. }
               pure (baseStyle, score)
 
   logInfoN [i|Using initial style: #{baseStyle} with score of #{baseScore}|]
