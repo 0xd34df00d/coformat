@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, ConstraintKinds, GADTs, RankNTypes, TypeApplications #-}
+{-# LANGUAGE DataKinds, GADTs, RankNTypes, TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -47,7 +47,8 @@ newtype CmdArgs = CmdArgs
   { args :: [BS.ByteString]
   } deriving (Show)
 
-runCommand :: FormatterMonad err m => String -> CmdArgs -> m BS.ByteString
+runCommand :: (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
+           => String -> CmdArgs -> m BS.ByteString
 runCommand exec (CmdArgs args) = do
   (ec, stdout, stderr) <- liftIO $ command [] exec $ BS.unpack <$> args
   case ec of ExitSuccess -> pure $ BS.pack $ fromStdout stdout
@@ -62,8 +63,6 @@ data Formatter where
                , parseResumeObject :: BS.ByteString -> Either String resumeObj
                , parseResumeOptions :: [ConfigItemT 'Supported] -> resumeObj -> Either String (T.Text, [ConfigItemT 'Value])
                } -> Formatter
-
-type FormatterMonad err m = (MonadError err m, CoHas UnexpectedFailure err, CoHas ExpectedFailure err, MonadIO m)
 
 data ExpectedFailure = FormatterSegfaulted T.Text   -- kek
   deriving (Eq, Show)
