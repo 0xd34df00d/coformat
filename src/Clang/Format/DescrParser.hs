@@ -1,15 +1,19 @@
 {-# LANGUAGE QuasiQuotes, ParallelListComp, RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE DataKinds, GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Clang.Format.DescrParser
-( parseDescr
+( parseOptsDescription
 ) where
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Data.Bifunctor
 import Data.Char
+import Data.List
 import Data.String.Interpolate
+import Control.Monad.Except
 import Control.Monad.Extra
 import Text.HTML.DOM
 import Text.XML hiding(parseLBS)
@@ -19,9 +23,21 @@ import Text.XML.Selector.TH
 import Text.XML.Selector.Types
 
 import Language.Coformat.Descr
+import Language.Coformat.Descr.Operations
 
-parseDescr :: LBS.ByteString -> Either String [ConfigItemT 'Parsed]
-parseDescr = parseCursor . fromDocument . parseLBS
+parseOptsDescription :: LBS.ByteString -> Either String (OptsDescription 'Supported)
+parseOptsDescription contents = do
+  parseResult <- liftEither' "Unable to parse the file: " $ parseCursor $ fromDocument $ parseLBS contents
+  let supportedOptions = filterParsedItems parseResult
+  baseStyles <- case find ((== bosKey) . name) supportedOptions of
+                     Nothing -> throwError "No `BasedOnStyle` option"
+                     Just stys -> pure stys
+  let varyingOptions = filter ((/= bosKey) . name) supportedOptions
+  case value baseStyles of
+       CTEnum { .. } -> pure $ OptsDescription { baseStyles = variants, knownOpts = varyingOptions }
+       _ -> throwError [i|Unknown type for the `BaseStyles` option: #{value baseStyles}|]
+  where
+    bosKey = ["BasedOnStyle"]
 
 parseCursor :: Cursor -> Either String [ConfigItemT 'Parsed]
 parseCursor cur = do
@@ -79,3 +95,6 @@ cur @> expr | (sub:_) <- queryT expr cur = pure sub
 
 (@>.) :: Cursor -> [JQSelector] -> Either String T.Text
 cur @>. expr = TL.toStrict . innerText <$> cur @> expr
+
+liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
+liftEither' context = liftEither . first ((context <>) . show)

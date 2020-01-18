@@ -1,25 +1,19 @@
 {-# LANGUAGE GADTs, TypeApplications, DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecordWildCards, QuasiQuotes, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Clang.Format.Formatter(clangFormatter) where
 
 import qualified Control.Monad.Except.CoHas as EC
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.HashMap.Strict as HM
 import Control.Lens
-import Control.Monad.Except
 import Data.Aeson.Lens
-import Data.Bifunctor
-import Data.List
-import Data.String.Interpolate
 
 import Clang.Format.DescrParser
 import Clang.Format.StyOpts
 import Clang.Format.YamlConversions
 import Language.Coformat.Descr
-import Language.Coformat.Descr.Operations
 import Language.Coformat.Formatter
 import Language.Coformat.Util
 
@@ -53,20 +47,3 @@ clangFormatter = Formatter { .. }
                 $ HM.lookup "BasedOnStyle" resumeObj ^? _Just . _String
       opts <- convert (show @FillError) $ collectConfigItems knownOpts resumeObj
       pure (baseStyle, opts)
-
-liftEither' :: (MonadError String m, Show e) => String -> Either e a -> m a
-liftEither' context = liftEither . first ((context <>) . show)
-
-parseOptsDescription :: LBS.ByteString -> Either String (OptsDescription 'Supported)
-parseOptsDescription contents = do
-  parseResult <- liftEither' "Unable to parse the file: " $ parseDescr contents
-  let supportedOptions = filterParsedItems parseResult
-  baseStyles <- case find ((== bosKey) . name) supportedOptions of
-                     Nothing -> throwError "No `BasedOnStyle` option"
-                     Just stys -> pure stys
-  let varyingOptions = filter ((/= bosKey) . name) supportedOptions
-  case value baseStyles of
-       CTEnum { .. } -> pure $ OptsDescription { baseStyles = variants, knownOpts = varyingOptions }
-       _ -> throwError [i|Unknown type for the `BaseStyles` option: #{value baseStyles}|]
-  where
-    bosKey = ["BasedOnStyle"]
