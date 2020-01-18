@@ -28,6 +28,8 @@ parseOpts exec  (OptsFromCmd args parser) = convert (show @Failure) (runCommand 
 data FormatterInfo = FormatterInfo
   { execName :: String
 
+  , versionCheck :: (CmdArgs, BS.ByteString -> Bool)
+
   , formatterOpts :: OptsSource (OptsDescription 'Supported)
   , hardcodedOpts :: [ConfigItemT 'Value]
   , defaultStyleOpts :: T.Text -> [ConfigItemT 'Supported] -> [ConfigItemT 'Value] -> OptsSource [ConfigItemT 'Value]

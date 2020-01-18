@@ -37,6 +37,7 @@ dependencies:
 - monad-logger
 - mtl
 - optparse-generic
+- regex-applicative
 - scientific
 - template-haskell
 - temporary

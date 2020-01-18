@@ -13,6 +13,8 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashMap.Strict as HM
 import Control.Lens
 import Data.Aeson.Lens
+import Text.Regex.Applicative
+import Text.Regex.Applicative.Common
 
 import Clang.Format.DescrParser
 import Clang.Format.StyOpts
@@ -22,6 +24,7 @@ import Language.Coformat.Formatter
 import Language.Coformat.Util
 
 data ClangFormatVersion = ClangFormat9 | ClangFormat10
+  deriving (Show)
 
 -- So much for the stage restriction
 getOpts :: ClangFormatVersion -> OptsDescription 'Supported
@@ -34,6 +37,7 @@ clangFormatter version = Formatter { .. }
     formatterInfo = FormatterInfo { .. }
       where
         execName = "clang-format"
+        versionCheck = (CmdArgs { args = ["--version"] }, versionCheckImpl version . BS.unpack)
         formatterOpts = StaticOpts $ getOpts version
         hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
                         , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
@@ -58,3 +62,10 @@ clangFormatter version = Formatter { .. }
                 $ HM.lookup "BasedOnStyle" resumeObj ^? _Just . _String
       opts <- convert (show @FillError) $ collectConfigItems knownOpts resumeObj
       pure (baseStyle, opts)
+
+versionCheckImpl :: ClangFormatVersion -> String -> Bool
+versionCheckImpl cv str
+  | Just num <- str =~ "clang-format version " *> decimal <* "." <* many anySym = num == thisVersion
+  | otherwise = False
+  where
+    thisVersion = read $ drop (length ("ClangFormat" :: String)) $ show cv :: Int
