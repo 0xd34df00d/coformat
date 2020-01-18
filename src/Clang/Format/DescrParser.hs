@@ -65,10 +65,10 @@ parseType name typStr cur
     variantless = [ ("int", CTInt ())
                   , ("bool", CTBool ())
                   , ("unsigned", CTUnsigned ())
-                  , ("std::string", CTString ())
-                  , ("std::vector<std::string>", CTStringVec ())
-                  , ("std::vector<RawStringFormat>", CTRawStringFormats ())
-                  , ("std::vector<IncludeCategory>", CTIncludeCats ())
+                  , ("std::string", CTUnsupported ())
+                  , ("std::vector<std::string>", CTUnsupported ())
+                  , ("std::vector<RawStringFormat>", CTUnsupported ())
+                  , ("std::vector<IncludeCategory>", CTUnsupported ())
                   ]
 
 (@>) :: Cursor -> [JQSelector] -> Either String Cursor

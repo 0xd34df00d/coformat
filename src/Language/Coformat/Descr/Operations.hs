@@ -24,10 +24,7 @@ filterParsedItems = mapMaybe $ \ConfigItem { .. } -> ConfigItem name <$> filterT
                     CTInt () -> Just $ CTInt ()
                     CTUnsigned () -> Just $ CTUnsigned ()
                     CTBool () -> Just $ CTBool ()
-                    CTString () -> Nothing
-                    CTStringVec () -> Nothing
-                    CTRawStringFormats () -> Nothing
-                    CTIncludeCats () -> Nothing
+                    CTUnsupported () -> Nothing
                     CTEnum vars () -> Just $ CTEnum vars ()
 
 replaceItemsWith :: [ConfigItemT 'Value] -> [ConfigItemT 'Value] -> [ConfigItemT 'Value]
@@ -50,10 +47,7 @@ parseConfigValue cfg str = liftEither $ (\parsed -> ConfigItem { name = name cfg
                         CTInt _ -> CTInt <$> readEither'
                         CTUnsigned _ -> CTUnsigned <$> readEither'
                         CTBool _ -> CTBool <$> readEither'
-                        CTString val -> absurd val
-                        CTStringVec val -> absurd val
-                        CTRawStringFormats val -> absurd val
-                        CTIncludeCats val -> absurd val
+                        CTUnsupported val -> absurd val
                         CTEnum variants _ | var `elem` variants -> pure $ CTEnum variants var
                                           | otherwise -> throwError [i|Unsupported option `#{var}`, supported ones are `#{T.intercalate "`, `" variants}`|]
                             where var = T.pack str

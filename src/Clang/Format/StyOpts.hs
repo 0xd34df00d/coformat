@@ -34,10 +34,7 @@ instance ToJSON StyOpts where
 
       toJson (CTInt n) = Number $ fromIntegral n
       toJson (CTUnsigned n) = Number $ fromIntegral n
-      toJson (CTString v) = absurd v
-      toJson (CTStringVec v) = absurd v
-      toJson (CTRawStringFormats v) = absurd v
-      toJson (CTIncludeCats v) = absurd v
+      toJson (CTUnsupported v) = absurd v
       toJson (CTBool b) = Bool b
       toJson (CTEnum _ opt) = String opt
 

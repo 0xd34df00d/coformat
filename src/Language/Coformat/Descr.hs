@@ -20,11 +20,8 @@ data ConfigTypeT f
   = CTInt (CTData f Int)
   | CTUnsigned (CTData f Natural)
   | CTBool (CTData f Bool)
-  | CTString (CTData f Void)
-  | CTStringVec (CTData f Void)
-  | CTRawStringFormats (CTData f Void)
-  | CTIncludeCats (CTData f Void)
   | CTEnum { variants :: [T.Text], enumValue :: CTData f T.Text }
+  | CTUnsupported (CTData f Void)
 
 deriving instance Show (ConfigTypeT 'Parsed)
 deriving instance Show (ConfigTypeT 'Supported)
