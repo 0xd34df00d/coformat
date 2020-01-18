@@ -38,6 +38,7 @@ dependencies:
 - mtl
 - optparse-generic
 - scientific
+- template-haskell
 - temporary
 - text
 - unordered-containers

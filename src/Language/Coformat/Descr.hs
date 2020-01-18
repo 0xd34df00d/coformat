@@ -1,12 +1,15 @@
 {-# LANGUAGE DataKinds, TypeFamilies #-}
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE Strict #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Coformat.Descr where
 
 import qualified Data.Text as T
 import Data.Void
 import Numeric.Natural
+import Language.Haskell.TH.Syntax
 
 data Stage = Parsed | Supported | Value
 
@@ -23,9 +26,16 @@ data ConfigTypeT f
   | CTEnum { variants :: [T.Text], enumValue :: CTData f T.Text }
   | CTUnsupported (CTData f Void)
 
+instance Lift Void where
+  lift = absurd
+
+instance Lift T.Text where
+  lift = lift . T.unpack
+
 deriving instance Show (ConfigTypeT 'Parsed)
 deriving instance Show (ConfigTypeT 'Supported)
 deriving instance Show (ConfigTypeT 'Value)
+deriving instance Lift (ConfigTypeT 'Supported)
 deriving instance Eq (ConfigTypeT 'Value)
 
 data ConfigItemT f = ConfigItem
@@ -36,8 +46,11 @@ data ConfigItemT f = ConfigItem
 deriving instance Show (ConfigItemT 'Parsed)
 deriving instance Show (ConfigItemT 'Supported)
 deriving instance Show (ConfigItemT 'Value)
+deriving instance Lift (ConfigItemT 'Supported)
 
 data OptsDescription stage = OptsDescription
   { knownOpts :: [ConfigItemT stage]
   , baseStyles :: [T.Text]
   }
+
+deriving instance Lift (OptsDescription 'Supported)
