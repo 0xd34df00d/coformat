@@ -36,3 +36,8 @@ data ConfigItemT f = ConfigItem
 deriving instance Show (ConfigItemT 'Parsed)
 deriving instance Show (ConfigItemT 'Supported)
 deriving instance Show (ConfigItemT 'Value)
+
+data OptsDescription stage = OptsDescription
+  { knownOpts :: [ConfigItemT stage]
+  , baseStyles :: [T.Text]
+  }

@@ -15,11 +15,6 @@ import Language.Coformat.Descr
 import Language.Coformat.Formatter.Failure
 import Language.Coformat.Util
 
-data OptsDescription stage = OptsDescription
-  { knownOpts :: [ConfigItemT stage]
-  , baseStyles :: [T.Text]
-  }
-
 data OptsSource opts
   = StaticOpts opts
   | OptsFromFile FilePath (LBS.ByteString -> Either String opts)
