@@ -3,7 +3,10 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Clang.Format.Formatter(clangFormatter) where
+module Clang.Format.Formatter
+( clangFormatter
+, ClangFormatVersion(..)
+) where
 
 import qualified Control.Monad.Except.CoHas as EC
 import qualified Data.ByteString.Char8 as BS
@@ -18,13 +21,20 @@ import Language.Coformat.Descr
 import Language.Coformat.Formatter
 import Language.Coformat.Util
 
-clangFormatter :: Formatter
-clangFormatter = Formatter { .. }
+data ClangFormatVersion = ClangFormat9 | ClangFormat10
+
+-- So much for the stage restriction
+getOpts :: ClangFormatVersion -> OptsDescription 'Supported
+getOpts ClangFormat9 = $(staticOptions "data/ClangFormatStyleOptions-9.html")
+getOpts ClangFormat10 = $(staticOptions "data/ClangFormatStyleOptions-10.html")
+
+clangFormatter :: ClangFormatVersion -> Formatter
+clangFormatter version = Formatter { .. }
   where
     formatterInfo = FormatterInfo { .. }
       where
         execName = "clang-format"
-        formatterOpts = StaticOpts $(staticOptions "data/ClangFormatStyleOptions-9.html")
+        formatterOpts = StaticOpts $ getOpts version
         hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
                         , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
                         , ConfigItem { name = ["DisableFormat"], value = CTBool False }

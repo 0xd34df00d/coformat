@@ -1,0 +1,2235 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Clang-Format Style Options &#8212; Clang 10 documentation</title>
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="“Clang” CFE Internals Manual" href="InternalsManual.html" />
+    <link rel="prev" title="ClangFormat" href="ClangFormat.html" /> 
+  </head><body>
+      <div class="header" role="banner"><h1 class="heading"><a href="index.html">
+          <span>Clang 10 documentation</span></a></h1>
+        <h2 class="heading"><span>Clang-Format Style Options</span></h2>
+      </div>
+      <div class="topnav" role="navigation" aria-label="top navigation">
+      
+        <p>
+        «&#160;&#160;<a href="ClangFormat.html">ClangFormat</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="InternalsManual.html">“Clang” CFE Internals Manual</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="clang-format-style-options">
+<h1>Clang-Format Style Options<a class="headerlink" href="#clang-format-style-options" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference internal" href="#"><span class="doc">Clang-Format Style Options</span></a> describes configurable formatting style options
+supported by <a class="reference internal" href="LibFormat.html"><span class="doc">LibFormat</span></a> and <a class="reference internal" href="ClangFormat.html"><span class="doc">ClangFormat</span></a>.</p>
+<p>When using <strong class="program">clang-format</strong> command line utility or
+<code class="docutils literal notranslate"><span class="pre">clang::format::reformat(...)</span></code> functions from code, one can either use one of
+the predefined styles (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft) or
+create a custom style by configuring specific style options.</p>
+<div class="section" id="configuring-style-with-clang-format">
+<h2>Configuring Style with clang-format<a class="headerlink" href="#configuring-style-with-clang-format" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">clang-format</strong> supports two ways to provide custom style options:
+directly specify style configuration in the <code class="docutils literal notranslate"><span class="pre">-style=</span></code> command line option or
+use <code class="docutils literal notranslate"><span class="pre">-style=file</span></code> and put style configuration in the <code class="docutils literal notranslate"><span class="pre">.clang-format</span></code> or
+<code class="docutils literal notranslate"><span class="pre">_clang-format</span></code> file in the project directory.</p>
+<p>When using <code class="docutils literal notranslate"><span class="pre">-style=file</span></code>, <strong class="program">clang-format</strong> for each input file will
+try to find the <code class="docutils literal notranslate"><span class="pre">.clang-format</span></code> file located in the closest parent directory
+of the input file. When the standard input is used, the search is started from
+the current directory.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">.clang-format</span></code> file uses YAML format:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">key1</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">value1</span>
+<span class="l l-Scalar l-Scalar-Plain">key2</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">value2</span>
+<span class="c1"># A comment.</span>
+<span class="nn">...</span>
+</pre></div>
+</div>
+<p>The configuration file can consist of several sections each having different
+<code class="docutils literal notranslate"><span class="pre">Language:</span></code> parameter denoting the programming language this section of the
+configuration is targeted at. See the description of the <strong>Language</strong> option
+below for the list of supported languages. The first section may have no
+language set, it will set the default style options for all lanugages.
+Configuration sections for specific language will override options set in the
+default section.</p>
+<p>When <strong class="program">clang-format</strong> formats a file, it auto-detects the language using
+the file name. When formatting standard input or a file that doesn’t have the
+extension corresponding to its language, <code class="docutils literal notranslate"><span class="pre">-assume-filename=</span></code> option can be
+used to override the file name <strong class="program">clang-format</strong> uses to detect the
+language.</p>
+<p>An example of a configuration file for multiple languages:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nn">---</span>
+<span class="c1"># We&#39;ll use defaults from the LLVM style, but with 4 columns indentation.</span>
+<span class="l l-Scalar l-Scalar-Plain">BasedOnStyle</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">LLVM</span>
+<span class="l l-Scalar l-Scalar-Plain">IndentWidth</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="nn">---</span>
+<span class="l l-Scalar l-Scalar-Plain">Language</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Cpp</span>
+<span class="c1"># Force pointers to the type for C++.</span>
+<span class="l l-Scalar l-Scalar-Plain">DerivePointerAlignment</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="l l-Scalar l-Scalar-Plain">PointerAlignment</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Left</span>
+<span class="nn">---</span>
+<span class="l l-Scalar l-Scalar-Plain">Language</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">JavaScript</span>
+<span class="c1"># Use 100 columns for JS.</span>
+<span class="l l-Scalar l-Scalar-Plain">ColumnLimit</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="nn">---</span>
+<span class="l l-Scalar l-Scalar-Plain">Language</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Proto</span>
+<span class="c1"># Don&#39;t format .proto files.</span>
+<span class="l l-Scalar l-Scalar-Plain">DisableFormat</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nn">---</span>
+<span class="l l-Scalar l-Scalar-Plain">Language</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">CSharp</span>
+<span class="c1"># Use 100 columns for C#.</span>
+<span class="l l-Scalar l-Scalar-Plain">ColumnLimit</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="nn">...</span>
+</pre></div>
+</div>
+<p>An easy way to get a valid <code class="docutils literal notranslate"><span class="pre">.clang-format</span></code> file containing all configuration
+options of a certain predefined style is:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">clang-format -style=llvm -dump-config &gt; .clang-format</span>
+</pre></div>
+</div>
+<p>When specifying configuration in the <code class="docutils literal notranslate"><span class="pre">-style=</span></code> option, the same configuration
+is applied for all input files. The format of the configuration is:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">-style=&#39;{key1: value1, key2: value2, ...}&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="disabling-formatting-on-a-piece-of-code">
+<h2>Disabling Formatting on a Piece of Code<a class="headerlink" href="#disabling-formatting-on-a-piece-of-code" title="Permalink to this headline">¶</a></h2>
+<p>Clang-format understands also special comments that switch formatting in a
+delimited range. The code between a comment <code class="docutils literal notranslate"><span class="pre">//</span> <span class="pre">clang-format</span> <span class="pre">off</span></code> or
+<code class="docutils literal notranslate"><span class="pre">/*</span> <span class="pre">clang-format</span> <span class="pre">off</span> <span class="pre">*/</span></code> up to a comment <code class="docutils literal notranslate"><span class="pre">//</span> <span class="pre">clang-format</span> <span class="pre">on</span></code> or
+<code class="docutils literal notranslate"><span class="pre">/*</span> <span class="pre">clang-format</span> <span class="pre">on</span> <span class="pre">*/</span></code> will not be formatted. The comments themselves
+will be formatted (aligned) normally.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">formatted_code</span><span class="p">;</span>
+<span class="c1">// clang-format off</span>
+    <span class="kt">void</span>    <span class="n">unformatted_code</span>  <span class="p">;</span>
+<span class="c1">// clang-format on</span>
+<span class="kt">void</span> <span class="n">formatted_code_again</span><span class="p">;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="configuring-style-in-code">
+<h2>Configuring Style in Code<a class="headerlink" href="#configuring-style-in-code" title="Permalink to this headline">¶</a></h2>
+<p>When using <code class="docutils literal notranslate"><span class="pre">clang::format::reformat(...)</span></code> functions, the format is specified
+by supplying the <a class="reference external" href="https://clang.llvm.org/doxygen/structclang_1_1format_1_1FormatStyle.html">clang::format::FormatStyle</a>
+structure.</p>
+</div>
+<div class="section" id="configurable-format-style-options">
+<h2>Configurable Format Style Options<a class="headerlink" href="#configurable-format-style-options" title="Permalink to this headline">¶</a></h2>
+<p>This section lists the supported style options. Value type is specified for
+each option. For enumeration types possible values are specified both as a C++
+enumeration member (with a prefix, e.g. <code class="docutils literal notranslate"><span class="pre">LS_Auto</span></code>), and as a value usable in
+the configuration (without a prefix: <code class="docutils literal notranslate"><span class="pre">Auto</span></code>).</p>
+<dl class="docutils">
+<dt><strong>BasedOnStyle</strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>)</dt>
+<dd><p class="first">The style used for all options not specifically set in the configuration.</p>
+<p>This option is supported only in the <strong class="program">clang-format</strong> configuration
+(both within <code class="docutils literal notranslate"><span class="pre">-style='{...}'</span></code> and the <code class="docutils literal notranslate"><span class="pre">.clang-format</span></code> file).</p>
+<p>Possible values:</p>
+<ul class="last simple">
+<li><code class="docutils literal notranslate"><span class="pre">LLVM</span></code>
+A style complying with the <a class="reference external" href="https://llvm.org/docs/CodingStandards.html">LLVM coding standards</a></li>
+<li><code class="docutils literal notranslate"><span class="pre">Google</span></code>
+A style complying with <a class="reference external" href="https://google.github.io/styleguide/cppguide.html">Google’s C++ style guide</a></li>
+<li><code class="docutils literal notranslate"><span class="pre">Chromium</span></code>
+A style complying with <a class="reference external" href="https://www.chromium.org/developers/coding-style">Chromium’s style guide</a></li>
+<li><code class="docutils literal notranslate"><span class="pre">Mozilla</span></code>
+A style complying with <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Developer_Guide/Coding_Style">Mozilla’s style guide</a></li>
+<li><code class="docutils literal notranslate"><span class="pre">WebKit</span></code>
+A style complying with <a class="reference external" href="https://www.webkit.org/coding/coding-style.html">WebKit’s style guide</a></li>
+<li><code class="docutils literal notranslate"><span class="pre">Microsoft</span></code>
+A style complying with <a class="reference external" href="https://docs.microsoft.com/en-us/visualstudio/ide/editorconfig-code-style-settings-reference?view=vs-2017">Microsoft’s style guide</a></li>
+</ul>
+</dd>
+</dl>
+<dl class="docutils">
+<dt><strong>AccessModifierOffset</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>)</dt>
+<dd>The extra indent or outdent of access modifiers, e.g. <code class="docutils literal notranslate"><span class="pre">public:</span></code>.</dd>
+<dt><strong>AlignAfterOpenBracket</strong> (<code class="docutils literal notranslate"><span class="pre">BracketAlignmentStyle</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, horizontally aligns arguments after an open bracket.</p>
+<p>This applies to round brackets (parentheses), angle brackets and square
+brackets.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BAS_Align</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Align</span></code>)
+Align parameters on the open bracket, e.g.:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">someLongFunction</span><span class="p">(</span><span class="n">argument1</span><span class="p">,</span>
+                 <span class="n">argument2</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BAS_DontAlign</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">DontAlign</span></code>)
+Don’t align, instead use <code class="docutils literal notranslate"><span class="pre">ContinuationIndentWidth</span></code>, e.g.:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">someLongFunction</span><span class="p">(</span><span class="n">argument1</span><span class="p">,</span>
+    <span class="n">argument2</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BAS_AlwaysBreak</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">AlwaysBreak</span></code>)
+Always break after an open bracket, if the parameters don’t fit
+on a single line, e.g.:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">someLongFunction</span><span class="p">(</span>
+    <span class="n">argument1</span><span class="p">,</span> <span class="n">argument2</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AlignConsecutiveAssignments</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, aligns consecutive assignments.</p>
+<p>This will align the assignment operators of consecutive lines. This
+will result in formattings like</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">aaaa</span> <span class="o">=</span> <span class="mi">12</span><span class="p">;</span>
+<span class="kt">int</span> <span class="n">b</span>    <span class="o">=</span> <span class="mi">23</span><span class="p">;</span>
+<span class="kt">int</span> <span class="n">ccc</span>  <span class="o">=</span> <span class="mi">23</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AlignConsecutiveDeclarations</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, aligns consecutive declarations.</p>
+<p>This will align the declaration names of consecutive lines. This
+will result in formattings like</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span>         <span class="n">aaaa</span> <span class="o">=</span> <span class="mi">12</span><span class="p">;</span>
+<span class="kt">float</span>       <span class="n">b</span> <span class="o">=</span> <span class="mi">23</span><span class="p">;</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">ccc</span> <span class="o">=</span> <span class="mi">23</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AlignConsecutiveMacros</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, aligns consecutive C/C++ preprocessor macros.</p>
+<p>This will align C/C++ preprocessor macros of consecutive lines.
+Will result in formattings like</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#define SHORT_NAME       42</span>
+<span class="cp">#define LONGER_NAME      0x007f</span>
+<span class="cp">#define EVEN_LONGER_NAME (2)</span>
+<span class="cp">#define foo(x)           (x * x)</span>
+<span class="cp">#define bar(y, z)        (y + z)</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AlignEscapedNewlines</strong> (<code class="docutils literal notranslate"><span class="pre">EscapedNewlineAlignmentStyle</span></code>)</dt>
+<dd><p class="first">Options for aligning backslashes in escaped newlines.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">ENAS_DontAlign</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">DontAlign</span></code>)
+Don’t align escaped newlines.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#define A \</span>
+<span class="cp">  int aaaa; \</span>
+<span class="cp">  int b; \</span>
+<span class="cp">  int dddddddddd;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">ENAS_Left</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Left</span></code>)
+Align escaped newlines as far left as possible.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="cp">#define A   \</span>
+<span class="cp">  int aaaa; \</span>
+<span class="cp">  int b;    \</span>
+<span class="cp">  int dddddddddd;</span>
+
+<span class="nb">false</span><span class="o">:</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">ENAS_Right</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Right</span></code>)
+Align escaped newlines in the right-most column.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#define A                                                                      \</span>
+<span class="cp">  int aaaa;                                                                    \</span>
+<span class="cp">  int b;                                                                       \</span>
+<span class="cp">  int dddddddddd;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AlignOperands</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, horizontally align operands of binary and ternary
+expressions.</p>
+<p>Specifically, this aligns operands of a single expression that needs to be
+split over multiple lines, e.g.:</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">aaa</span> <span class="o">=</span> <span class="n">bbbbbbbbbbbbbbb</span> <span class="o">+</span>
+          <span class="n">ccccccccccccccc</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AlignTrailingComments</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, aligns trailing comments.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                   <span class="nb">false</span><span class="o">:</span>
+<span class="kt">int</span> <span class="n">a</span><span class="p">;</span>     <span class="c1">// My comment a      vs.     int a; // My comment a</span>
+<span class="kt">int</span> <span class="n">b</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span> <span class="c1">// comment  b                int b = 2; // comment about b</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AllowAllArgumentsOnNextLine</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If a function call or braced initializer list doesn’t fit on a
+line, allow putting all arguments onto the next line, even if
+<code class="docutils literal notranslate"><span class="pre">BinPackArguments</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="n">callFunction</span><span class="p">(</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">);</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="n">callFunction</span><span class="p">(</span><span class="n">a</span><span class="p">,</span>
+             <span class="n">b</span><span class="p">,</span>
+             <span class="n">c</span><span class="p">,</span>
+             <span class="n">d</span><span class="p">);</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AllowAllConstructorInitializersOnNextLine</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If a constructor definition with a member initializer list doesn’t
+fit on a single line, allow putting all member initializers onto the next
+line, if <code class="docutils literal notranslate"><span class="pre">`ConstructorInitializerAllOnOneLineOrOnePerLine`</span></code> is true.
+Note that this parameter has no effect if
+<code class="docutils literal notranslate"><span class="pre">`ConstructorInitializerAllOnOneLineOrOnePerLine`</span></code> is false.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="n">MyClass</span><span class="o">::</span><span class="n">MyClass</span><span class="p">()</span> <span class="o">:</span>
+    <span class="n">member0</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">member1</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="p">{}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="n">MyClass</span><span class="o">::</span><span class="n">MyClass</span><span class="p">()</span> <span class="o">:</span>
+    <span class="n">member0</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+    <span class="n">member1</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AllowAllParametersOfDeclarationOnNextLine</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If the function declaration doesn’t fit on a line,
+allow putting all parameters of a function declaration onto
+the next line even if <code class="docutils literal notranslate"><span class="pre">BinPackParameters</span></code> is <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">myFunction</span><span class="p">(</span>
+    <span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">,</span> <span class="kt">int</span> <span class="n">c</span><span class="p">,</span> <span class="kt">int</span> <span class="n">d</span><span class="p">,</span> <span class="kt">int</span> <span class="n">e</span><span class="p">);</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">myFunction</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span>
+                <span class="kt">int</span> <span class="n">b</span><span class="p">,</span>
+                <span class="kt">int</span> <span class="n">c</span><span class="p">,</span>
+                <span class="kt">int</span> <span class="n">d</span><span class="p">,</span>
+                <span class="kt">int</span> <span class="n">e</span><span class="p">);</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AllowShortBlocksOnASingleLine</strong> (<code class="docutils literal notranslate"><span class="pre">ShortBlockStyle</span></code>)</dt>
+<dd><p class="first">Dependent on the value, <code class="docutils literal notranslate"><span class="pre">while</span> <span class="pre">(true)</span> <span class="pre">{</span> <span class="pre">continue;</span> <span class="pre">}</span></code> can be put on a
+single line.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBS_Never</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Never</span></code>)
+Never merge blocks into a single line.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">continue</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBS_Empty</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Empty</span></code>)
+Only merge empty blocks.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{}</span>
+<span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">continue</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBS_Always</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Always</span></code>)
+Always merge short blocks into a single line.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{}</span>
+<span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span> <span class="k">continue</span><span class="p">;</span> <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AllowShortCaseLabelsOnASingleLine</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, short case labels will be contracted to a single line.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                   <span class="nb">false</span><span class="o">:</span>
+<span class="k">switch</span> <span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="p">{</span>                    <span class="n">vs</span><span class="p">.</span>     <span class="k">switch</span> <span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">case</span> <span class="mi">1</span><span class="o">:</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>                   <span class="k">case</span> <span class="mi">1</span><span class="o">:</span>
+<span class="k">case</span> <span class="mi">2</span><span class="o">:</span> <span class="k">return</span><span class="p">;</span>                           <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>                                         <span class="k">break</span><span class="p">;</span>
+                                        <span class="k">case</span> <span class="mi">2</span><span class="o">:</span>
+                                          <span class="k">return</span><span class="p">;</span>
+                                        <span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AllowShortFunctionsOnASingleLine</strong> (<code class="docutils literal notranslate"><span class="pre">ShortFunctionStyle</span></code>)</dt>
+<dd><p class="first">Dependent on the value, <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">f()</span> <span class="pre">{</span> <span class="pre">return</span> <span class="pre">0;</span> <span class="pre">}</span></code> can be put on a
+single line.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SFS_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Never merge functions into a single line.</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SFS_InlineOnly</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">InlineOnly</span></code>)
+Only merge functions defined inside a class. Same as “inline”,
+except it does not implies “empty”: i.e. top level empty functions
+are not merged either.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="n">foo</span><span class="p">();</span> <span class="p">}</span>
+<span class="p">};</span>
+<span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SFS_Empty</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Empty</span></code>)
+Only merge empty functions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{}</span>
+<span class="kt">void</span> <span class="nf">f2</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">bar2</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SFS_Inline</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Inline</span></code>)
+Only merge functions defined inside a class. Implies “empty”.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="n">foo</span><span class="p">();</span> <span class="p">}</span>
+<span class="p">};</span>
+<span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SFS_All</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">All</span></code>)
+Merge all functions fitting on a single line.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span>
+  <span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="n">foo</span><span class="p">();</span> <span class="p">}</span>
+<span class="p">};</span>
+<span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AllowShortIfStatementsOnASingleLine</strong> (<code class="docutils literal notranslate"><span class="pre">ShortIfStyle</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(a)</span> <span class="pre">return;</span></code> can be put on a single line.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SIS_Never</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Never</span></code>)
+Never put short ifs on the same line.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">)</span>
+  <span class="k">return</span> <span class="p">;</span>
+<span class="k">else</span> <span class="p">{</span>
+  <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SIS_WithoutElse</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">WithoutElse</span></code>)
+Without else put short ifs on the same line only if
+the else is not a compound statement.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>
+<span class="k">else</span>
+  <span class="k">return</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SIS_Always</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Always</span></code>)
+Always put short ifs on the same line if
+the else is not a compound statement or not.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>
+<span class="k">else</span> <span class="p">{</span>
+  <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AllowShortLambdasOnASingleLine</strong> (<code class="docutils literal notranslate"><span class="pre">ShortLambdaStyle</span></code>)</dt>
+<dd><p class="first">Dependent on the value, <code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">lambda</span> <span class="pre">[]()</span> <span class="pre">{</span> <span class="pre">return</span> <span class="pre">0;</span> <span class="pre">}</span></code> can be put on a
+single line.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SLS_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Never merge lambdas into a single line.</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SLS_Empty</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Empty</span></code>)
+Only merge empty lambdas.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">auto</span> <span class="n">lambda</span> <span class="o">=</span> <span class="p">[](</span><span class="kt">int</span> <span class="n">a</span><span class="p">)</span> <span class="p">{}</span>
+<span class="k">auto</span> <span class="n">lambda2</span> <span class="o">=</span> <span class="p">[](</span><span class="kt">int</span> <span class="n">a</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">a</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SLS_Inline</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Inline</span></code>)
+Merge lambda into a single line if argument of a function.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">auto</span> <span class="n">lambda</span> <span class="o">=</span> <span class="p">[](</span><span class="kt">int</span> <span class="n">a</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">a</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="n">sort</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">a</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span> <span class="p">()[]</span> <span class="p">{</span> <span class="k">return</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">y</span><span class="p">;</span> <span class="p">})</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SLS_All</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">All</span></code>)
+Merge all lambdas fitting on a single line.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">auto</span> <span class="n">lambda</span> <span class="o">=</span> <span class="p">[](</span><span class="kt">int</span> <span class="n">a</span><span class="p">)</span> <span class="p">{}</span>
+<span class="k">auto</span> <span class="n">lambda2</span> <span class="o">=</span> <span class="p">[](</span><span class="kt">int</span> <span class="n">a</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="n">a</span><span class="p">;</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AllowShortLoopsOnASingleLine</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd>If <code class="docutils literal notranslate"><span class="pre">true</span></code>, <code class="docutils literal notranslate"><span class="pre">while</span> <span class="pre">(true)</span> <span class="pre">continue;</span></code> can be put on a single
+line.</dd>
+<dt><strong>AlwaysBreakAfterDefinitionReturnType</strong> (<code class="docutils literal notranslate"><span class="pre">DefinitionReturnTypeBreakingStyle</span></code>)</dt>
+<dd><p class="first">The function definition return type breaking style to use.  This
+option is <strong>deprecated</strong> and is retained for backwards compatibility.</p>
+<p>Possible values:</p>
+<ul class="last simple">
+<li><code class="docutils literal notranslate"><span class="pre">DRTBS_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Break after return type automatically.
+<code class="docutils literal notranslate"><span class="pre">PenaltyReturnTypeOnItsOwnLine</span></code> is taken into account.</li>
+<li><code class="docutils literal notranslate"><span class="pre">DRTBS_All</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">All</span></code>)
+Always break after the return type.</li>
+<li><code class="docutils literal notranslate"><span class="pre">DRTBS_TopLevel</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">TopLevel</span></code>)
+Always break after the return types of top-level functions.</li>
+</ul>
+</dd>
+<dt><strong>AlwaysBreakAfterReturnType</strong> (<code class="docutils literal notranslate"><span class="pre">ReturnTypeBreakingStyle</span></code>)</dt>
+<dd><p class="first">The function declaration return type breaking style to use.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">RTBS_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Break after return type automatically.
+<code class="docutils literal notranslate"><span class="pre">PenaltyReturnTypeOnItsOwnLine</span></code> is taken into account.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">A</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span> <span class="p">};</span>
+<span class="p">};</span>
+<span class="kt">int</span> <span class="nf">f</span><span class="p">();</span>
+<span class="kt">int</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="mi">1</span><span class="p">;</span> <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">RTBS_All</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">All</span></code>)
+Always break after the return type.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">A</span> <span class="p">{</span>
+  <span class="kt">int</span>
+  <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">};</span>
+<span class="p">};</span>
+<span class="kt">int</span>
+<span class="nf">f</span><span class="p">();</span>
+<span class="kt">int</span>
+<span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">RTBS_TopLevel</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">TopLevel</span></code>)
+Always break after the return types of top-level functions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">A</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span> <span class="p">};</span>
+<span class="p">};</span>
+<span class="kt">int</span>
+<span class="nf">f</span><span class="p">();</span>
+<span class="kt">int</span>
+<span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">RTBS_AllDefinitions</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">AllDefinitions</span></code>)
+Always break after the return type of function definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">A</span> <span class="p">{</span>
+  <span class="kt">int</span>
+  <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">};</span>
+<span class="p">};</span>
+<span class="kt">int</span> <span class="nf">f</span><span class="p">();</span>
+<span class="kt">int</span>
+<span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">RTBS_TopLevelDefinitions</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">TopLevelDefinitions</span></code>)
+Always break after the return type of top-level definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">A</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span> <span class="p">};</span>
+<span class="p">};</span>
+<span class="kt">int</span> <span class="nf">f</span><span class="p">();</span>
+<span class="kt">int</span>
+<span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>AlwaysBreakBeforeMultilineStrings</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, always break before multiline string literals.</p>
+<p>This flag is mean to make cases where there are multiple multiline strings
+in a file look more consistent. Thus, it will only take effect if wrapping
+the string at that point leads to it being indented
+<code class="docutils literal notranslate"><span class="pre">ContinuationIndentWidth</span></code> spaces from the start of the line.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="n">aaaa</span> <span class="o">=</span>                         <span class="n">vs</span><span class="p">.</span>     <span class="n">aaaa</span> <span class="o">=</span> <span class="s">&quot;bbbb&quot;</span>
+    <span class="s">&quot;bbbb&quot;</span>                                    <span class="s">&quot;cccc&quot;</span><span class="p">;</span>
+    <span class="s">&quot;cccc&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>AlwaysBreakTemplateDeclarations</strong> (<code class="docutils literal notranslate"><span class="pre">BreakTemplateDeclarationsStyle</span></code>)</dt>
+<dd><p class="first">The template declaration breaking style to use.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BTDS_No</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">No</span></code>)
+Do not force break before declaration.
+<code class="docutils literal notranslate"><span class="pre">PenaltyBreakTemplateDeclaration</span></code> is taken into account.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="n">T</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="n">T</span> <span class="n">foo</span><span class="p">(</span><span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+                            <span class="kt">int</span> <span class="n">bbbbbbbbbbbbbbbbbbbbb</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BTDS_MultiLine</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">MultiLine</span></code>)
+Force break after template declaration only when the following
+declaration spans multiple lines.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="n">T</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="n">T</span> <span class="n">foo</span><span class="p">(</span><span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+      <span class="kt">int</span> <span class="n">bbbbbbbbbbbbbbbbbbbbb</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BTDS_Yes</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Yes</span></code>)
+Always break after template declaration.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="n">T</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="n">T</span> <span class="n">foo</span><span class="p">(</span><span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+      <span class="kt">int</span> <span class="n">bbbbbbbbbbbbbbbbbbbbb</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>BinPackArguments</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">false</span></code>, a function call’s arguments will either be all on the
+same line or will have one line each.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">f</span><span class="p">(</span><span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span> <span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+    <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">f</span><span class="p">(</span><span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+    <span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+    <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>BinPackParameters</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">false</span></code>, a function declaration’s or function definition’s
+parameters will either all be on the same line or will have one line each.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">(</span><span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span> <span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+       <span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span><span class="p">)</span> <span class="p">{}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">(</span><span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+       <span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaa</span><span class="p">,</span>
+       <span class="kt">int</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span><span class="p">)</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>BraceWrapping</strong> (<code class="docutils literal notranslate"><span class="pre">BraceWrappingFlags</span></code>)</dt>
+<dd><p class="first">Control of individual brace wrapping cases.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">BreakBeforeBraces</span></code> is set to <code class="docutils literal notranslate"><span class="pre">BS_Custom</span></code>, use this to specify how
+each individual brace case should be handled. Otherwise, this is ignored.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example of usage:</span>
+<span class="l l-Scalar l-Scalar-Plain">BreakBeforeBraces</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Custom</span>
+<span class="l l-Scalar l-Scalar-Plain">BraceWrapping</span><span class="p p-Indicator">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">AfterEnum</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+  <span class="l l-Scalar l-Scalar-Plain">AfterStruct</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+  <span class="l l-Scalar l-Scalar-Plain">SplitEmptyFunction</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre></div>
+</div>
+<p>Nested configuration flags:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterCaseLabel</span></code> Wrap case labels.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">false</span><span class="o">:</span>                                <span class="nb">true</span><span class="o">:</span>
+<span class="k">switch</span> <span class="p">(</span><span class="n">foo</span><span class="p">)</span> <span class="p">{</span>                <span class="n">vs</span><span class="p">.</span>     <span class="k">switch</span> <span class="p">(</span><span class="n">foo</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">case</span> <span class="mi">1</span><span class="o">:</span> <span class="p">{</span>                             <span class="k">case</span> <span class="mi">1</span><span class="o">:</span>
+    <span class="n">bar</span><span class="p">();</span>                              <span class="p">{</span>
+    <span class="k">break</span><span class="p">;</span>                                <span class="n">bar</span><span class="p">();</span>
+  <span class="p">}</span>                                       <span class="k">break</span><span class="p">;</span>
+  <span class="k">default</span><span class="o">:</span> <span class="p">{</span>                            <span class="p">}</span>
+    <span class="n">plop</span><span class="p">();</span>                             <span class="k">default</span><span class="o">:</span>
+  <span class="p">}</span>                                     <span class="p">{</span>
+<span class="p">}</span>                                         <span class="n">plop</span><span class="p">();</span>
+                                        <span class="p">}</span>
+                                      <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterClass</span></code> Wrap class definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">class</span> <span class="nc">foo</span> <span class="p">{};</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">class</span> <span class="nc">foo</span>
+<span class="p">{};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterControlStatement</span></code> Wrap control statements (<code class="docutils literal notranslate"><span class="pre">if</span></code>/<code class="docutils literal notranslate"><span class="pre">for</span></code>/<code class="docutils literal notranslate"><span class="pre">while</span></code>/<code class="docutils literal notranslate"><span class="pre">switch</span></code>/..).</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span>
+<span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span>
+<span class="p">{}</span>
+<span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+<span class="p">{}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterEnum</span></code> Wrap enum definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span>
+<span class="p">{</span>
+  <span class="n">B</span>
+<span class="p">};</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span> <span class="n">B</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterFunction</span></code> Wrap function definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">bar</span><span class="p">();</span>
+  <span class="n">bar2</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">bar</span><span class="p">();</span>
+  <span class="n">bar2</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterNamespace</span></code> Wrap namespace definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">namespace</span>
+<span class="p">{</span>
+<span class="kt">int</span> <span class="n">foo</span><span class="p">();</span>
+<span class="kt">int</span> <span class="nf">bar</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">namespace</span> <span class="p">{</span>
+<span class="kt">int</span> <span class="n">foo</span><span class="p">();</span>
+<span class="kt">int</span> <span class="nf">bar</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterObjCDeclaration</span></code> Wrap ObjC definitions (interfaces, implementations…).
+&#64;autoreleasepool and &#64;synchronized blocks are wrapped
+according to <cite>AfterControlStatement</cite> flag.</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterStruct</span></code> Wrap struct definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">struct</span> <span class="n">foo</span>
+<span class="p">{</span>
+  <span class="kt">int</span> <span class="n">x</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">struct</span> <span class="n">foo</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">x</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterUnion</span></code> Wrap union definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">union</span> <span class="n">foo</span>
+<span class="p">{</span>
+  <span class="kt">int</span> <span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">union</span> <span class="n">foo</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">AfterExternBlock</span></code> Wrap extern blocks.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span>
+<span class="p">{</span>
+  <span class="kt">int</span> <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="p">{</span>
+<span class="kt">int</span> <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">BeforeCatch</span></code> Wrap before <code class="docutils literal notranslate"><span class="pre">catch</span></code>.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">BeforeElse</span></code> Wrap before <code class="docutils literal notranslate"><span class="pre">else</span></code>.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">IndentBraces</span></code> Indent the wrapped braces themselves.</p>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">SplitEmptyFunction</span></code> If <code class="docutils literal notranslate"><span class="pre">false</span></code>, empty function body can be put on a single line.
+This option is used only if the opening brace of the function has
+already been wrapped, i.e. the <cite>AfterFunction</cite> brace wrapping mode is
+set, and the function could/should not be put on a single line (as per
+<cite>AllowShortFunctionsOnASingleLine</cite> and constructor formatting options).</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">f</span><span class="p">()</span>   <span class="n">vs</span><span class="p">.</span>   <span class="n">inf</span> <span class="n">f</span><span class="p">()</span>
+<span class="p">{}</span>              <span class="p">{</span>
+                <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">SplitEmptyRecord</span></code> If <code class="docutils literal notranslate"><span class="pre">false</span></code>, empty record (e.g. class, struct or union) body
+can be put on a single line. This option is used only if the opening
+brace of the record has already been wrapped, i.e. the <cite>AfterClass</cite>
+(for classes) brace wrapping mode is set.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span>   <span class="n">vs</span><span class="p">.</span>  <span class="k">class</span> <span class="nc">Foo</span>
+<span class="p">{}</span>               <span class="p">{</span>
+                 <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">SplitEmptyNamespace</span></code> If <code class="docutils literal notranslate"><span class="pre">false</span></code>, empty namespace body can be put on a single line.
+This option is used only if the opening brace of the namespace has
+already been wrapped, i.e. the <cite>AfterNamespace</cite> brace wrapping mode is
+set.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">Foo</span>   <span class="n">vs</span><span class="p">.</span>  <span class="k">namespace</span> <span class="n">Foo</span>
+<span class="p">{}</span>                   <span class="p">{</span>
+                     <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>BreakAfterJavaFieldAnnotations</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">Break after each annotation on a field in Java files.</p>
+<div class="last highlight-java notranslate"><div class="highlight"><pre><span></span><span class="kc">true</span><span class="o">:</span>                                  <span class="kc">false</span><span class="o">:</span>
+<span class="nd">@Partial</span>                       <span class="n">vs</span><span class="o">.</span>     <span class="nd">@Partial</span> <span class="nd">@Mock</span> <span class="n">DataLoad</span> <span class="n">loader</span><span class="o">;</span>
+<span class="nd">@Mock</span>
+<span class="n">DataLoad</span> <span class="n">loader</span><span class="o">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>BreakBeforeBinaryOperators</strong> (<code class="docutils literal notranslate"><span class="pre">BinaryOperatorStyle</span></code>)</dt>
+<dd><p class="first">The way to wrap binary operators.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BOS_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Break after operators.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">LooooooooooongType</span> <span class="n">loooooooooooooooooooooongVariable</span> <span class="o">=</span>
+    <span class="n">someLooooooooooooooooongFunction</span><span class="p">();</span>
+
+<span class="kt">bool</span> <span class="n">value</span> <span class="o">=</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span> <span class="o">+</span>
+                     <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span> <span class="o">==</span>
+                 <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span> <span class="o">&amp;&amp;</span>
+             <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span> <span class="o">&gt;</span>
+                 <span class="n">ccccccccccccccccccccccccccccccccccccccccc</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BOS_NonAssignment</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">NonAssignment</span></code>)
+Break before operators that aren’t assignments.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">LooooooooooongType</span> <span class="n">loooooooooooooooooooooongVariable</span> <span class="o">=</span>
+    <span class="n">someLooooooooooooooooongFunction</span><span class="p">();</span>
+
+<span class="kt">bool</span> <span class="n">value</span> <span class="o">=</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+                     <span class="o">+</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+                 <span class="o">==</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+             <span class="o">&amp;&amp;</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+                    <span class="o">&gt;</span> <span class="n">ccccccccccccccccccccccccccccccccccccccccc</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BOS_All</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">All</span></code>)
+Break before operators.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">LooooooooooongType</span> <span class="n">loooooooooooooooooooooongVariable</span>
+    <span class="o">=</span> <span class="n">someLooooooooooooooooongFunction</span><span class="p">();</span>
+
+<span class="kt">bool</span> <span class="n">value</span> <span class="o">=</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+                     <span class="o">+</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+                 <span class="o">==</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+             <span class="o">&amp;&amp;</span> <span class="n">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</span>
+                    <span class="o">&gt;</span> <span class="n">ccccccccccccccccccccccccccccccccccccccccc</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>BreakBeforeBraces</strong> (<code class="docutils literal notranslate"><span class="pre">BraceBreakingStyle</span></code>)</dt>
+<dd><p class="first">The brace breaking style to use.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Attach</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Attach</span></code>)
+Always attach braces to surrounding context.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span> <span class="p">{};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Linux</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Linux</span></code>)
+Like <code class="docutils literal notranslate"><span class="pre">Attach</span></code>, but break before braces on function, namespace and
+class definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span>
+<span class="p">{</span>
+<span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Mozilla</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Mozilla</span></code>)
+Like <code class="docutils literal notranslate"><span class="pre">Attach</span></code>, but break before braces on enum, function, and record
+definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span>
+<span class="p">{</span>
+<span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Stroustrup</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Stroustrup</span></code>)
+Like <code class="docutils literal notranslate"><span class="pre">Attach</span></code>, but break before function definitions, <code class="docutils literal notranslate"><span class="pre">catch</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">else</span></code>.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span> <span class="p">{</span>
+<span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Allman</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Allman</span></code>)
+Always break before braces.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span>
+<span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="k">catch</span> <span class="p">()</span>
+<span class="p">{</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span>
+<span class="p">{</span>
+<span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span>
+<span class="p">{</span>
+<span class="p">}</span>
+<span class="k">else</span>
+<span class="p">{</span>
+<span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span>
+<span class="p">{</span>
+  <span class="n">A</span><span class="p">,</span>
+  <span class="n">B</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Whitesmiths</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Whitesmiths</span></code>)
+Like <code class="docutils literal notranslate"><span class="pre">Allman</span></code> but always indent braces and line up code with braces.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span>
+  <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="k">catch</span> <span class="p">()</span>
+  <span class="p">{</span>
+  <span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span>
+  <span class="p">{</span>
+  <span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span>
+  <span class="p">{</span>
+  <span class="p">}</span>
+<span class="k">else</span>
+  <span class="p">{</span>
+  <span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span>
+  <span class="p">{</span>
+  <span class="n">A</span><span class="p">,</span>
+  <span class="n">B</span>
+  <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_GNU</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">GNU</span></code>)
+Always break before braces and add an extra level of indentation to
+braces of control statements, not to those of class, function
+or other definitions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span>
+  <span class="p">{</span>
+    <span class="n">foo</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="k">catch</span> <span class="p">()</span>
+  <span class="p">{</span>
+  <span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span>
+<span class="p">{</span>
+<span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span>
+  <span class="p">{</span>
+  <span class="p">}</span>
+<span class="k">else</span>
+  <span class="p">{</span>
+  <span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span>
+<span class="p">{</span>
+  <span class="n">A</span><span class="p">,</span>
+  <span class="n">B</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_WebKit</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">WebKit</span></code>)
+Like <code class="docutils literal notranslate"><span class="pre">Attach</span></code>, but break before functions.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">try</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="n">bar</span><span class="p">();</span> <span class="p">}</span>
+<span class="k">class</span> <span class="nc">foo</span> <span class="p">{</span>
+<span class="p">};</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="k">enum</span> <span class="nl">X</span> <span class="p">:</span> <span class="kt">int</span> <span class="p">{</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span> <span class="p">};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BS_Custom</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Custom</span></code>)
+Configure each individual brace in <cite>BraceWrapping</cite>.</p>
+</li>
+</ul>
+</dd>
+<dt><strong>BreakBeforeTernaryOperators</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, ternary operators will be placed after line breaks.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="n">veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongDescription</span>
+    <span class="o">?</span> <span class="nl">firstValue</span>
+    <span class="p">:</span> <span class="n">SecondValueVeryVeryVeryVeryLong</span><span class="p">;</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="n">veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongDescription</span> <span class="o">?</span>
+    <span class="nl">firstValue</span> <span class="p">:</span>
+    <span class="n">SecondValueVeryVeryVeryVeryLong</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>BreakConstructorInitializers</strong> (<code class="docutils literal notranslate"><span class="pre">BreakConstructorInitializersStyle</span></code>)</dt>
+<dd><p class="first">The constructor initializers style to use.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BCIS_BeforeColon</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">BeforeColon</span></code>)
+Break constructor initializers before the colon and after the commas.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">Constructor</span><span class="p">()</span>
+    <span class="o">:</span> <span class="n">initializer1</span><span class="p">(),</span>
+      <span class="n">initializer2</span><span class="p">()</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BCIS_BeforeComma</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">BeforeComma</span></code>)
+Break constructor initializers before the colon and commas, and align
+the commas with the colon.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">Constructor</span><span class="p">()</span>
+    <span class="o">:</span> <span class="n">initializer1</span><span class="p">()</span>
+    <span class="p">,</span> <span class="n">initializer2</span><span class="p">()</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BCIS_AfterColon</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">AfterColon</span></code>)
+Break constructor initializers after the colon and commas.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">Constructor</span><span class="p">()</span> <span class="o">:</span>
+    <span class="n">initializer1</span><span class="p">(),</span>
+    <span class="n">initializer2</span><span class="p">()</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>BreakInheritanceList</strong> (<code class="docutils literal notranslate"><span class="pre">BreakInheritanceListStyle</span></code>)</dt>
+<dd><p class="first">The inheritance list style to use.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BILS_BeforeColon</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">BeforeColon</span></code>)
+Break inheritance list before the colon and after the commas.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span>
+    <span class="o">:</span> <span class="n">Base1</span><span class="p">,</span>
+      <span class="n">Base2</span>
+<span class="p">{};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BILS_BeforeComma</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">BeforeComma</span></code>)
+Break inheritance list before the colon and commas, and align
+the commas with the colon.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span>
+    <span class="o">:</span> <span class="n">Base1</span>
+    <span class="p">,</span> <span class="n">Base2</span>
+<span class="p">{};</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">BILS_AfterColon</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">AfterColon</span></code>)
+Break inheritance list after the colon and commas.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span> <span class="o">:</span>
+    <span class="n">Base1</span><span class="p">,</span>
+    <span class="n">Base2</span>
+<span class="p">{};</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>BreakStringLiterals</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd>Allow breaking string literals when formatting.</dd>
+<dt><strong>ColumnLimit</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd><p class="first">The column limit.</p>
+<p class="last">A column limit of <code class="docutils literal notranslate"><span class="pre">0</span></code> means that there is no column limit. In this case,
+clang-format will respect the input’s line breaking decisions within
+statements unless they contradict other rules.</p>
+</dd>
+<dt><strong>CommentPragmas</strong> (<code class="docutils literal notranslate"><span class="pre">std::string</span></code>)</dt>
+<dd><p class="first">A regular expression that describes comments with special meaning,
+which should not be split into lines or otherwise changed.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="c1">// CommentPragmas: &#39;^ FOOBAR pragma:&#39;</span>
+<span class="c1">// Will leave the following line unaffected</span>
+<span class="cp">#include</span> <span class="cpf">&lt;vector&gt; // FOOBAR pragma: keep</span><span class="cp"></span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>CompactNamespaces</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, consecutive namespace declarations will be on the same
+line. If <code class="docutils literal notranslate"><span class="pre">false</span></code>, each namespace is declared on a new line.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="k">namespace</span> <span class="n">Foo</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">Bar</span> <span class="p">{</span>
+<span class="p">}}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="k">namespace</span> <span class="n">Foo</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">Bar</span> <span class="p">{</span>
+<span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If it does not fit on a single line, the overflowing namespaces get
+wrapped:</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">Foo</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">Bar</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">Extra</span> <span class="p">{</span>
+<span class="p">}}}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>ConstructorInitializerAllOnOneLineOrOnePerLine</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If the constructor initializers don’t fit on a line, put each
+initializer on its own line.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="n">SomeClass</span><span class="o">::</span><span class="n">Constructor</span><span class="p">()</span>
+    <span class="o">:</span> <span class="n">aaaaaaaa</span><span class="p">(</span><span class="n">aaaaaaaa</span><span class="p">),</span> <span class="n">aaaaaaaa</span><span class="p">(</span><span class="n">aaaaaaaa</span><span class="p">),</span> <span class="n">aaaaaaaa</span><span class="p">(</span><span class="n">aaaaaaaaaaaaaaaaaaaaaaaaa</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="n">SomeClass</span><span class="o">::</span><span class="n">Constructor</span><span class="p">()</span>
+    <span class="o">:</span> <span class="n">aaaaaaaa</span><span class="p">(</span><span class="n">aaaaaaaa</span><span class="p">),</span> <span class="n">aaaaaaaa</span><span class="p">(</span><span class="n">aaaaaaaa</span><span class="p">),</span>
+      <span class="n">aaaaaaaa</span><span class="p">(</span><span class="n">aaaaaaaaaaaaaaaaaaaaaaaaa</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>ConstructorInitializerIndentWidth</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The number of characters to use for indentation of constructor
+initializer lists as well as inheritance lists.</dd>
+<dt><strong>ContinuationIndentWidth</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd><p class="first">Indent width for line continuations.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nl">ContinuationIndentWidth</span><span class="p">:</span> <span class="mi">2</span>
+
+<span class="kt">int</span> <span class="n">i</span> <span class="o">=</span>         <span class="c1">//  VeryVeryVeryVeryVeryLongComment</span>
+  <span class="n">longFunction</span><span class="p">(</span> <span class="c1">// Again a long comment</span>
+    <span class="n">arg</span><span class="p">);</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>Cpp11BracedListStyle</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, format braced lists as best suited for C++11 braced
+lists.</p>
+<p>Important differences:
+- No spaces inside the braced list.
+- No line break before the closing brace.
+- Indentation with the continuation indent, not with the block indent.</p>
+<p>Fundamentally, C++11 braced lists are formatted exactly like function
+calls would be formatted in their place. If the braced list follows a name
+(e.g. a type or variable name), clang-format formats as if the <code class="docutils literal notranslate"><span class="pre">{}</span></code> were
+the parentheses of a function call with that name. If there is no name,
+a zero-length name is assumed.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">x</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">};</span>     <span class="n">vs</span><span class="p">.</span>     <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">x</span><span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span> <span class="p">};</span>
+<span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">x</span><span class="p">{{},</span> <span class="p">{},</span> <span class="p">{},</span> <span class="p">{}};</span>           <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">x</span><span class="p">{</span> <span class="p">{},</span> <span class="p">{},</span> <span class="p">{},</span> <span class="p">{}</span> <span class="p">};</span>
+<span class="n">f</span><span class="p">(</span><span class="n">MyMap</span><span class="p">[{</span><span class="n">composite</span><span class="p">,</span> <span class="n">key</span><span class="p">}]);</span>            <span class="n">f</span><span class="p">(</span><span class="n">MyMap</span><span class="p">[{</span> <span class="n">composite</span><span class="p">,</span> <span class="n">key</span> <span class="p">}]);</span>
+<span class="k">new</span> <span class="kt">int</span><span class="p">[</span><span class="mi">3</span><span class="p">]{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">};</span>                   <span class="k">new</span> <span class="kt">int</span><span class="p">[</span><span class="mi">3</span><span class="p">]{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span> <span class="p">};</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>DerivePointerAlignment</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd>If <code class="docutils literal notranslate"><span class="pre">true</span></code>, analyze the formatted file for the most common
+alignment of <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> and <code class="docutils literal notranslate"><span class="pre">*</span></code>.
+Pointer and reference alignment styles are going to be updated according
+to the preferences found in the file.
+<code class="docutils literal notranslate"><span class="pre">PointerAlignment</span></code> is then used only as fallback.</dd>
+<dt><strong>DisableFormat</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd>Disables formatting completely.</dd>
+<dt><strong>ExperimentalAutoDetectBinPacking</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, clang-format detects whether function calls and
+definitions are formatted with one parameter per line.</p>
+<p>Each call can be bin-packed, one-per-line or inconclusive. If it is
+inconclusive, e.g. completely on one line, but a decision needs to be
+made, clang-format analyzes whether there are other bin-packed cases in
+the input file and act accordingly.</p>
+<p class="last">NOTE: This is an experimental flag, that might go away or be renamed. Do
+not use this in config files, etc. Use at your own risk.</p>
+</dd>
+<dt><strong>FixNamespaceComments</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, clang-format adds missing namespace end comments and
+fixes invalid existing ones.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="k">namespace</span> <span class="n">a</span> <span class="p">{</span>                  <span class="n">vs</span><span class="p">.</span>     <span class="k">namespace</span> <span class="n">a</span> <span class="p">{</span>
+<span class="n">foo</span><span class="p">();</span>                                 <span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span> <span class="c1">// namespace a                       }</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>ForEachMacros</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::string&gt;</span></code>)</dt>
+<dd><p class="first">A vector of macros that should be interpreted as foreach loops
+instead of as function calls.</p>
+<p>These are expected to be macros of the form:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">FOREACH</span><span class="p">(</span><span class="o">&lt;</span><span class="n">variable</span><span class="o">-</span><span class="n">declaration</span><span class="o">&gt;</span><span class="p">,</span> <span class="p">...)</span>
+  <span class="o">&lt;</span><span class="n">loop</span><span class="o">-</span><span class="n">body</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>In the .clang-format configuration file, this can be configured like:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">ForEachMacros</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;RANGES_FOR&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;FOREACH&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p class="last">For example: BOOST_FOREACH.</p>
+</dd>
+<dt><strong>IncludeBlocks</strong> (<code class="docutils literal notranslate"><span class="pre">IncludeBlocksStyle</span></code>)</dt>
+<dd><p class="first">Dependent on the value, multiple <code class="docutils literal notranslate"><span class="pre">#include</span></code> blocks can be sorted
+as one and divided based on category.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">IBS_Preserve</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Preserve</span></code>)
+Sort each <code class="docutils literal notranslate"><span class="pre">#include</span></code> block separately.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;b.h&quot;               into      #include &quot;b.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span> <span class="cpf">&lt;lib/main.h&gt;                  #include &quot;a.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;a.h&quot;                         #include &lt;lib/main.h&gt;</span><span class="cp"></span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">IBS_Merge</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Merge</span></code>)
+Merge multiple <code class="docutils literal notranslate"><span class="pre">#include</span></code> blocks together and sort as one.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;b.h&quot;               into      #include &quot;a.h&quot;</span><span class="cp"></span>
+                                       <span class="cp">#include</span> <span class="cpf">&quot;b.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;lib/main.h&gt;                  #include &lt;lib/main.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;a.h&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">IBS_Regroup</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Regroup</span></code>)
+Merge multiple <code class="docutils literal notranslate"><span class="pre">#include</span></code> blocks together and sort as one.
+Then split into groups based on category priority. See
+<code class="docutils literal notranslate"><span class="pre">IncludeCategories</span></code>.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;b.h&quot;               into      #include &quot;a.h&quot;</span><span class="cp"></span>
+                                       <span class="cp">#include</span> <span class="cpf">&quot;b.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;lib/main.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;a.h&quot;                         #include &lt;lib/main.h&gt;</span><span class="cp"></span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>IncludeCategories</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;IncludeCategory&gt;</span></code>)</dt>
+<dd><p class="first">Regular expressions denoting the different <code class="docutils literal notranslate"><span class="pre">#include</span></code> categories
+used for ordering <code class="docutils literal notranslate"><span class="pre">#includes</span></code>.</p>
+<p><a class="reference external" href="https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html">POSIX extended</a>
+regular expressions are supported.</p>
+<p>These regular expressions are matched against the filename of an include
+(including the &lt;&gt; or “”) in order. The value belonging to the first
+matching regular expression is assigned and <code class="docutils literal notranslate"><span class="pre">#includes</span></code> are sorted first
+according to increasing category number and then alphabetically within
+each category.</p>
+<p>If none of the regular expressions match, INT_MAX is assigned as
+category. The main header for a source file automatically gets category 0.
+so that it is generally kept at the beginning of the <code class="docutils literal notranslate"><span class="pre">#includes</span></code>
+(<a class="reference external" href="https://llvm.org/docs/CodingStandards.html#include-style">https://llvm.org/docs/CodingStandards.html#include-style</a>). However, you
+can also assign negative priorities if you have certain headers that
+always need to be first.</p>
+<p>To configure this in the .clang-format file, use:</p>
+<div class="last highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">IncludeCategories</span><span class="p p-Indicator">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Regex</span><span class="p p-Indicator">:</span>           <span class="s">&#39;^&quot;(llvm|llvm-c|clang|clang-c)/&#39;</span>
+    <span class="l l-Scalar l-Scalar-Plain">Priority</span><span class="p p-Indicator">:</span>        <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Regex</span><span class="p p-Indicator">:</span>           <span class="s">&#39;^(&lt;|&quot;(gtest|gmock|isl|json)/)&#39;</span>
+    <span class="l l-Scalar l-Scalar-Plain">Priority</span><span class="p p-Indicator">:</span>        <span class="l l-Scalar l-Scalar-Plain">3</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Regex</span><span class="p p-Indicator">:</span>           <span class="s">&#39;&lt;[[:alnum:].]+&gt;&#39;</span>
+    <span class="l l-Scalar l-Scalar-Plain">Priority</span><span class="p p-Indicator">:</span>        <span class="l l-Scalar l-Scalar-Plain">4</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Regex</span><span class="p p-Indicator">:</span>           <span class="s">&#39;.*&#39;</span>
+    <span class="l l-Scalar l-Scalar-Plain">Priority</span><span class="p p-Indicator">:</span>        <span class="l l-Scalar l-Scalar-Plain">1</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>IncludeIsMainRegex</strong> (<code class="docutils literal notranslate"><span class="pre">std::string</span></code>)</dt>
+<dd><p class="first">Specify a regular expression of suffixes that are allowed in the
+file-to-main-include mapping.</p>
+<p>When guessing whether a #include is the “main” include (to assign
+category 0, see above), use this regex of allowed suffixes to the header
+stem. A partial match is done, so that:
+- “” means “arbitrary suffix”
+- “$” means “no suffix”</p>
+<p class="last">For example, if configured to “(_test)?$”, then a header a.h would be seen
+as the “main” include in both a.cc and a_test.cc.</p>
+</dd>
+<dt><strong>IndentCaseLabels</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">Indent case labels one level from the switch statement.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>, use the same indentation level as for the switch statement.
+Switch statement body is always indented one level more than case labels.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">false</span><span class="o">:</span>                                 <span class="nb">true</span><span class="o">:</span>
+<span class="k">switch</span> <span class="p">(</span><span class="n">fool</span><span class="p">)</span> <span class="p">{</span>                <span class="n">vs</span><span class="p">.</span>     <span class="k">switch</span> <span class="p">(</span><span class="n">fool</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">case</span> <span class="mi">1</span><span class="o">:</span>                                  <span class="k">case</span> <span class="mi">1</span><span class="o">:</span>
+  <span class="n">bar</span><span class="p">();</span>                                   <span class="n">bar</span><span class="p">();</span>
+  <span class="k">break</span><span class="p">;</span>                                   <span class="k">break</span><span class="p">;</span>
+<span class="k">default</span><span class="o">:</span>                                 <span class="k">default</span><span class="o">:</span>
+  <span class="n">plop</span><span class="p">();</span>                                  <span class="n">plop</span><span class="p">();</span>
+<span class="p">}</span>                                      <span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>IndentGotoLabels</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">Indent goto labels.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">false</span></code>, goto labels are flushed left.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>                      <span class="n">vs</span><span class="p">.</span>     <span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>                           <span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">())</span> <span class="p">{</span>
+  <span class="nl">label1</span><span class="p">:</span>                              <span class="nl">label1</span><span class="p">:</span>
+    <span class="n">bar</span><span class="p">();</span>                                 <span class="n">bar</span><span class="p">();</span>
+  <span class="p">}</span>                                      <span class="p">}</span>
+<span class="nl">label2</span><span class="p">:</span>                                <span class="nl">label2</span><span class="p">:</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>                              <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>                                      <span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>IndentPPDirectives</strong> (<code class="docutils literal notranslate"><span class="pre">PPDirectiveIndentStyle</span></code>)</dt>
+<dd><p class="first">The preprocessor directive indenting style to use.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">PPDIS_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Does not indent any directives.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#if FOO</span>
+<span class="cp">#if BAR</span>
+<span class="cp">#include</span> <span class="cpf">&lt;foo&gt;</span><span class="cp"></span>
+<span class="cp">#endif</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">PPDIS_AfterHash</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">AfterHash</span></code>)
+Indents directives after the hash.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#if FOO</span>
+<span class="cp">#  if BAR</span>
+<span class="cp">#    include &lt;foo&gt;</span>
+<span class="cp">#  endif</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">PPDIS_BeforeHash</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">BeforeHash</span></code>)
+Indents directives before the hash.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#if FOO</span>
+  <span class="cp">#if BAR</span>
+    <span class="cp">#include</span> <span class="cpf">&lt;foo&gt;</span><span class="cp"></span>
+  <span class="cp">#endif</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>IndentWidth</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd><p class="first">The number of columns to use for indentation.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nl">IndentWidth</span><span class="p">:</span> <span class="mi">3</span>
+
+<span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+   <span class="n">someFunction</span><span class="p">();</span>
+   <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">,</span> <span class="nb">false</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">f</span><span class="p">();</span>
+   <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>IndentWrappedFunctionNames</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">Indent if a function definition or declaration is wrapped after the
+type.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>
+<span class="n">LoooooooooooooooooooooooooooooooooooooooongReturnType</span>
+    <span class="n">LoooooooooooooooooooooooooooooooongFunctionDeclaration</span><span class="p">();</span>
+
+<span class="nb">false</span><span class="o">:</span>
+<span class="n">LoooooooooooooooooooooooooooooooooooooooongReturnType</span>
+<span class="n">LoooooooooooooooooooooooooooooooongFunctionDeclaration</span><span class="p">();</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>JavaImportGroups</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::string&gt;</span></code>)</dt>
+<dd><p class="first">A vector of prefixes ordered by the desired groups for Java imports.</p>
+<p>Each group is separated by a newline. Static imports will also follow the
+same grouping convention above all non-static imports. One group’s prefix
+can be a subset of another - the longest prefix is always matched. Within
+a group, the imports are ordered lexicographically.</p>
+<p>In the .clang-format configuration file, this can be configured like
+in the following yaml example. This will result in imports being
+formatted as in the Java example below.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">JavaImportGroups</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;com.example&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;com&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;org&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<div class="last highlight-java notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">static</span> <span class="n">com</span><span class="o">.</span><span class="na">example</span><span class="o">.</span><span class="na">function1</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">com</span><span class="o">.</span><span class="na">test</span><span class="o">.</span><span class="na">function2</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">example</span><span class="o">.</span><span class="na">function3</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">com.example.ClassA</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.example.Test</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.example.a.ClassB</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">com.test.ClassC</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.example.ClassD</span><span class="o">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>JavaScriptQuotes</strong> (<code class="docutils literal notranslate"><span class="pre">JavaScriptQuoteStyle</span></code>)</dt>
+<dd><p class="first">The JavaScriptQuoteStyle to use for JavaScript strings.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">JSQS_Leave</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Leave</span></code>)
+Leave string quotes as they are.</p>
+<div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="nx">string1</span> <span class="o">=</span> <span class="s2">&quot;foo&quot;</span><span class="p">;</span>
+<span class="nx">string2</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">JSQS_Single</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Single</span></code>)
+Always use single quotes.</p>
+<div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="nx">string1</span> <span class="o">=</span> <span class="s1">&#39;foo&#39;</span><span class="p">;</span>
+<span class="nx">string2</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">JSQS_Double</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Double</span></code>)
+Always use double quotes.</p>
+<div class="highlight-js notranslate"><div class="highlight"><pre><span></span><span class="nx">string1</span> <span class="o">=</span> <span class="s2">&quot;foo&quot;</span><span class="p">;</span>
+<span class="nx">string2</span> <span class="o">=</span> <span class="s2">&quot;bar&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>JavaScriptWrapImports</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">Whether to wrap JavaScript import/export statements.</p>
+<div class="last highlight-js notranslate"><div class="highlight"><pre><span></span><span class="kc">true</span><span class="o">:</span>
+<span class="kr">import</span> <span class="p">{</span>
+    <span class="nx">VeryLongImportsAreAnnoying</span><span class="p">,</span>
+    <span class="nx">VeryLongImportsAreAnnoying</span><span class="p">,</span>
+    <span class="nx">VeryLongImportsAreAnnoying</span><span class="p">,</span>
+<span class="p">}</span> <span class="nx">from</span> <span class="s1">&#39;some/module.js&#39;</span>
+
+<span class="kc">false</span><span class="o">:</span>
+<span class="kr">import</span> <span class="p">{</span><span class="nx">VeryLongImportsAreAnnoying</span><span class="p">,</span> <span class="nx">VeryLongImportsAreAnnoying</span><span class="p">,</span> <span class="nx">VeryLongImportsAreAnnoying</span><span class="p">,}</span> <span class="nx">from</span> <span class="s2">&quot;some/module.js&quot;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>KeepEmptyLinesAtTheStartOfBlocks</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If true, the empty line at the start of blocks is kept.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">)</span> <span class="p">{</span>                     <span class="n">vs</span><span class="p">.</span>     <span class="k">if</span> <span class="p">(</span><span class="n">foo</span><span class="p">)</span> <span class="p">{</span>
+                                         <span class="n">bar</span><span class="p">();</span>
+  <span class="n">bar</span><span class="p">();</span>                               <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>Language</strong> (<code class="docutils literal notranslate"><span class="pre">LanguageKind</span></code>)</dt>
+<dd><p class="first">Language, this format style is targeted at.</p>
+<p>Possible values:</p>
+<ul class="last simple">
+<li><code class="docutils literal notranslate"><span class="pre">LK_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Do not use.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_Cpp</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Cpp</span></code>)
+Should be used for C, C++.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_CSharp</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">CSharp</span></code>)
+Should be used for C#.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_Java</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Java</span></code>)
+Should be used for Java.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_JavaScript</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">JavaScript</span></code>)
+Should be used for JavaScript.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_ObjC</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">ObjC</span></code>)
+Should be used for Objective-C, Objective-C++.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_Proto</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Proto</span></code>)
+Should be used for Protocol Buffers
+(<a class="reference external" href="https://developers.google.com/protocol-buffers/">https://developers.google.com/protocol-buffers/</a>).</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_TableGen</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">TableGen</span></code>)
+Should be used for TableGen code.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LK_TextProto</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">TextProto</span></code>)
+Should be used for Protocol Buffer messages in text format
+(<a class="reference external" href="https://developers.google.com/protocol-buffers/">https://developers.google.com/protocol-buffers/</a>).</li>
+</ul>
+</dd>
+<dt><strong>MacroBlockBegin</strong> (<code class="docutils literal notranslate"><span class="pre">std::string</span></code>)</dt>
+<dd><p class="first">A regular expression matching macros that start a block.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp"># With:</span>
+<span class="nl">MacroBlockBegin</span><span class="p">:</span> <span class="s">&quot;^NS_MAP_BEGIN|\</span>
+<span class="s">NS_TABLE_HEAD$&quot;</span>
+<span class="nl">MacroBlockEnd</span><span class="p">:</span> <span class="s">&quot;^\</span>
+<span class="s">NS_MAP_END|\</span>
+<span class="s">NS_TABLE_.*_END$&quot;</span>
+
+<span class="n">NS_MAP_BEGIN</span>
+  <span class="n">foo</span><span class="p">();</span>
+<span class="n">NS_MAP_END</span>
+
+<span class="n">NS_TABLE_HEAD</span>
+  <span class="nf">bar</span><span class="p">();</span>
+<span class="n">NS_TABLE_FOO_END</span>
+
+<span class="cp"># Without:</span>
+<span class="n">NS_MAP_BEGIN</span>
+<span class="n">foo</span><span class="p">();</span>
+<span class="n">NS_MAP_END</span>
+
+<span class="n">NS_TABLE_HEAD</span>
+<span class="nf">bar</span><span class="p">();</span>
+<span class="n">NS_TABLE_FOO_END</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>MacroBlockEnd</strong> (<code class="docutils literal notranslate"><span class="pre">std::string</span></code>)</dt>
+<dd>A regular expression matching macros that end a block.</dd>
+<dt><strong>MaxEmptyLinesToKeep</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd><p class="first">The maximum number of consecutive empty lines to keep.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nl">MaxEmptyLinesToKeep</span><span class="p">:</span> <span class="mi">1</span>         <span class="n">vs</span><span class="p">.</span>     <span class="nl">MaxEmptyLinesToKeep</span><span class="p">:</span> <span class="mi">0</span>
+<span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>                              <span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>                                 <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+                                           <span class="n">i</span> <span class="o">=</span> <span class="n">foo</span><span class="p">();</span>
+  <span class="n">i</span> <span class="o">=</span> <span class="n">foo</span><span class="p">();</span>                               <span class="k">return</span> <span class="n">i</span><span class="p">;</span>
+                                       <span class="p">}</span>
+  <span class="k">return</span> <span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>NamespaceIndentation</strong> (<code class="docutils literal notranslate"><span class="pre">NamespaceIndentationKind</span></code>)</dt>
+<dd><p class="first">The indentation used for namespaces.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">NI_None</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">None</span></code>)
+Don’t indent in namespaces.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">out</span> <span class="p">{</span>
+<span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span class="k">namespace</span> <span class="n">in</span> <span class="p">{</span>
+<span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">NI_Inner</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Inner</span></code>)
+Indent only in inner namespaces (nested in other namespaces).</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">out</span> <span class="p">{</span>
+<span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span class="k">namespace</span> <span class="n">in</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">NI_All</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">All</span></code>)
+Indent in all namespaces.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">out</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+  <span class="k">namespace</span> <span class="n">in</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>NamespaceMacros</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::string&gt;</span></code>)</dt>
+<dd><p class="first">A vector of macros which are used to open namespace blocks.</p>
+<p>These are expected to be macros of the form:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">NAMESPACE</span><span class="p">(</span><span class="o">&lt;</span><span class="k">namespace</span><span class="o">-</span><span class="n">name</span><span class="o">&gt;</span><span class="p">,</span> <span class="p">...)</span> <span class="p">{</span>
+  <span class="o">&lt;</span><span class="k">namespace</span><span class="o">-</span><span class="n">content</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p class="last">For example: TESTSUITE</p>
+</dd>
+<dt><strong>ObjCBinPackProtocolList</strong> (<code class="docutils literal notranslate"><span class="pre">BinPackStyle</span></code>)</dt>
+<dd><p class="first">Controls bin-packing Objective-C protocol conformance list
+items into as few lines as possible when they go over <code class="docutils literal notranslate"><span class="pre">ColumnLimit</span></code>.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">Auto</span></code> (the default), delegates to the value in
+<code class="docutils literal notranslate"><span class="pre">BinPackParameters</span></code>. If that is <code class="docutils literal notranslate"><span class="pre">true</span></code>, bin-packs Objective-C
+protocol conformance list items into as few lines as possible
+whenever they go over <code class="docutils literal notranslate"><span class="pre">ColumnLimit</span></code>.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">Always</span></code>, always bin-packs Objective-C protocol conformance
+list items into as few lines as possible whenever they go over
+<code class="docutils literal notranslate"><span class="pre">ColumnLimit</span></code>.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">Never</span></code>, lays out Objective-C protocol conformance list items
+onto individual lines whenever they go over <code class="docutils literal notranslate"><span class="pre">ColumnLimit</span></code>.</p>
+<div class="highlight-objc notranslate"><div class="highlight"><pre><span></span><span class="n">Always</span> <span class="p">(</span><span class="n">or</span> <span class="n">Auto</span><span class="p">,</span> <span class="k">if</span> <span class="n">BinPackParameters</span><span class="o">=</span><span class="nb">true</span><span class="p">)</span><span class="o">:</span>
+<span class="k">@interface</span> <span class="nc">ccccccccccccc</span> <span class="p">()</span> <span class="o">&lt;</span>
+    <span class="n">ccccccccccccc</span><span class="p">,</span> <span class="n">ccccccccccccc</span><span class="p">,</span>
+    <span class="n">ccccccccccccc</span><span class="p">,</span> <span class="n">ccccccccccccc</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="p">}</span>
+
+<span class="n">Never</span> <span class="p">(</span><span class="n">or</span> <span class="n">Auto</span><span class="p">,</span> <span class="k">if</span> <span class="n">BinPackParameters</span><span class="o">=</span><span class="nb">false</span><span class="p">)</span><span class="o">:</span>
+<span class="k">@interface</span> <span class="nc">ddddddddddddd</span> <span class="p">()</span> <span class="o">&lt;</span>
+    <span class="n">ddddddddddddd</span><span class="p">,</span>
+    <span class="n">ddddddddddddd</span><span class="p">,</span>
+    <span class="n">ddddddddddddd</span><span class="p">,</span>
+    <span class="n">ddddddddddddd</span><span class="o">&gt;</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Possible values:</p>
+<ul class="last simple">
+<li><code class="docutils literal notranslate"><span class="pre">BPS_Auto</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Auto</span></code>)
+Automatically determine parameter bin-packing behavior.</li>
+<li><code class="docutils literal notranslate"><span class="pre">BPS_Always</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Always</span></code>)
+Always bin-pack parameters.</li>
+<li><code class="docutils literal notranslate"><span class="pre">BPS_Never</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Never</span></code>)
+Never bin-pack parameters.</li>
+</ul>
+</dd>
+<dt><strong>ObjCBlockIndentWidth</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd><p class="first">The number of characters to use for indentation of ObjC blocks.</p>
+<div class="last highlight-objc notranslate"><div class="highlight"><pre><span></span><span class="nl">ObjCBlockIndentWidth</span><span class="p">:</span> <span class="mi">4</span>
+
+<span class="p">[</span><span class="n">operation</span> <span class="nl">setCompletionBlock</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+    <span class="p">[</span><span class="nb">self</span> <span class="n">onOperationDone</span><span class="p">];</span>
+<span class="p">}];</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>ObjCSpaceAfterProperty</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd>Add a space after <code class="docutils literal notranslate"><span class="pre">&#64;property</span></code> in Objective-C, i.e. use
+<code class="docutils literal notranslate"><span class="pre">&#64;property</span> <span class="pre">(readonly)</span></code> instead of <code class="docutils literal notranslate"><span class="pre">&#64;property(readonly)</span></code>.</dd>
+<dt><strong>ObjCSpaceBeforeProtocolList</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd>Add a space in front of an Objective-C protocol list, i.e. use
+<code class="docutils literal notranslate"><span class="pre">Foo</span> <span class="pre">&lt;Protocol&gt;</span></code> instead of <code class="docutils literal notranslate"><span class="pre">Foo&lt;Protocol&gt;</span></code>.</dd>
+<dt><strong>PenaltyBreakAssignment</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for breaking around an assignment operator.</dd>
+<dt><strong>PenaltyBreakBeforeFirstCallParameter</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for breaking a function call after <code class="docutils literal notranslate"><span class="pre">call(</span></code>.</dd>
+<dt><strong>PenaltyBreakComment</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for each line break introduced inside a comment.</dd>
+<dt><strong>PenaltyBreakFirstLessLess</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for breaking before the first <code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code>.</dd>
+<dt><strong>PenaltyBreakString</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for each line break introduced inside a string literal.</dd>
+<dt><strong>PenaltyBreakTemplateDeclaration</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for breaking after template declaration.</dd>
+<dt><strong>PenaltyExcessCharacter</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The penalty for each character outside of the column limit.</dd>
+<dt><strong>PenaltyReturnTypeOnItsOwnLine</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>Penalty for putting the return type of a function onto its own
+line.</dd>
+<dt><strong>PointerAlignment</strong> (<code class="docutils literal notranslate"><span class="pre">PointerAlignmentStyle</span></code>)</dt>
+<dd><p class="first">Pointer and reference alignment style.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">PAS_Left</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Left</span></code>)
+Align pointer to the left.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span><span class="o">*</span> <span class="n">a</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">PAS_Right</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Right</span></code>)
+Align pointer to the right.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="o">*</span><span class="n">a</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">PAS_Middle</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Middle</span></code>)
+Align pointer in the middle.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="o">*</span> <span class="n">a</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>RawStringFormats</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;RawStringFormat&gt;</span></code>)</dt>
+<dd><p class="first">Defines hints for detecting supported languages code blocks in raw
+strings.</p>
+<p>A raw string with a matching delimiter or a matching enclosing function
+name will be reformatted assuming the specified language based on the
+style for that language defined in the .clang-format file. If no style has
+been defined in the .clang-format file for the specific language, a
+predefined style given by ‘BasedOnStyle’ is used. If ‘BasedOnStyle’ is not
+found, the formatting is based on llvm style. A matching delimiter takes
+precedence over a matching enclosing function name for determining the
+language of the raw string contents.</p>
+<p>If a canonical delimiter is specified, occurrences of other delimiters for
+the same language will be updated to the canonical if possible.</p>
+<p>There should be at most one specification per language and each delimiter
+and enclosing function should not occur in multiple specifications.</p>
+<p>To configure this in the .clang-format file, use:</p>
+<div class="last highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">RawStringFormats</span><span class="p p-Indicator">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Language</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">TextProto</span>
+      <span class="l l-Scalar l-Scalar-Plain">Delimiters</span><span class="p p-Indicator">:</span>
+        <span class="p p-Indicator">-</span> <span class="s">&#39;pb&#39;</span>
+        <span class="p p-Indicator">-</span> <span class="s">&#39;proto&#39;</span>
+    <span class=" -Error">  </span><span class="l l-Scalar l-Scalar-Plain">EnclosingFunctions</span><span class="p p-Indicator">:</span>
+        <span class="p p-Indicator">-</span> <span class="s">&#39;PARSE_TEXT_PROTO&#39;</span>
+      <span class="l l-Scalar l-Scalar-Plain">BasedOnStyle</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">google</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Language</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Cpp</span>
+      <span class="l l-Scalar l-Scalar-Plain">Delimiters</span><span class="p p-Indicator">:</span>
+        <span class="p p-Indicator">-</span> <span class="s">&#39;cc&#39;</span>
+        <span class="p p-Indicator">-</span> <span class="s">&#39;cpp&#39;</span>
+    <span class=" -Error">  </span><span class="l l-Scalar l-Scalar-Plain">BasedOnStyle</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">llvm</span>
+      <span class="l l-Scalar l-Scalar-Plain">CanonicalDelimiter</span><span class="p p-Indicator">:</span> <span class="s">&#39;cc&#39;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>ReflowComments</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, clang-format will attempt to re-flow comments.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">false</span><span class="o">:</span>
+<span class="c1">// veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongComment with plenty of information</span>
+<span class="cm">/* second veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongComment with plenty of information */</span>
+
+<span class="nb">true</span><span class="o">:</span>
+<span class="c1">// veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongComment with plenty of</span>
+<span class="c1">// information</span>
+<span class="cm">/* second veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongComment with plenty of</span>
+<span class="cm"> * information */</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SortIncludes</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, clang-format will sort <code class="docutils literal notranslate"><span class="pre">#includes</span></code>.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">false</span><span class="o">:</span>                                 <span class="nb">true</span><span class="o">:</span>
+<span class="cp">#include</span> <span class="cpf">&quot;b.h&quot;                 vs.     #include &quot;a.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;a.h&quot;                         #include &quot;b.h&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SortUsingDeclarations</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, clang-format will sort using declarations.</p>
+<p>The order of using declarations is defined as follows:
+Split the strings by “::” and discard any initial empty strings. The last
+element of each list is a non-namespace name; all others are namespace
+names. Sort the lists of names lexicographically, where the sort order of
+individual names is that all non-namespace names come before all namespace
+names, and within those groups, names are in case-insensitive
+lexicographic order.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">false</span><span class="o">:</span>                                 <span class="nb">true</span><span class="o">:</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="p">;</span>               <span class="n">vs</span><span class="p">.</span>     <span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">cin</span><span class="p">;</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">cin</span><span class="p">;</span>                        <span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceAfterCStyleCast</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, a space is inserted after C style casts.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="p">(</span><span class="kt">int</span><span class="p">)</span> <span class="n">i</span><span class="p">;</span>                       <span class="n">vs</span><span class="p">.</span>     <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">i</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceAfterLogicalNot</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, a space is inserted after the logical not operator (<code class="docutils literal notranslate"><span class="pre">!</span></code>).</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="o">!</span> <span class="n">someExpression</span><span class="p">();</span>            <span class="n">vs</span><span class="p">.</span>     <span class="o">!</span><span class="n">someExpression</span><span class="p">();</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceAfterTemplateKeyword</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, a space will be inserted after the ‘template’ keyword.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="kt">void</span> <span class="n">foo</span><span class="p">();</span>     <span class="n">vs</span><span class="p">.</span>     <span class="k">template</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="kt">void</span> <span class="n">foo</span><span class="p">();</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceBeforeAssignmentOperators</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">false</span></code>, spaces will be removed before assignment operators.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="kt">int</span> <span class="n">a</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>                     <span class="n">vs</span><span class="p">.</span>     <span class="kt">int</span> <span class="n">a</span><span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+<span class="n">a</span> <span class="o">+=</span> <span class="mi">42</span><span class="p">;</span>                               <span class="n">a</span><span class="o">+=</span> <span class="mi">42</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceBeforeCpp11BracedList</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, a space will be inserted before a C++11 braced list
+used to initialize an object (after the preceding identifier or type).</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="n">Foo</span> <span class="n">foo</span> <span class="p">{</span> <span class="n">bar</span> <span class="p">};</span>               <span class="n">vs</span><span class="p">.</span>     <span class="n">Foo</span> <span class="n">foo</span><span class="p">{</span> <span class="n">bar</span> <span class="p">};</span>
+<span class="n">Foo</span> <span class="p">{};</span>                                <span class="n">Foo</span><span class="p">{};</span>
+<span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span> <span class="p">};</span>               <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span> <span class="p">};</span>
+<span class="k">new</span> <span class="kt">int</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span> <span class="p">};</span>                <span class="k">new</span> <span class="kt">int</span><span class="p">[</span><span class="mi">3</span><span class="p">]{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span> <span class="p">};</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceBeforeCtorInitializerColon</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">false</span></code>, spaces will be removed before constructor initializer
+colon.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="n">Foo</span><span class="o">::</span><span class="n">Foo</span><span class="p">()</span> <span class="o">:</span> <span class="n">a</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="p">{}</span>                   <span class="n">Foo</span><span class="o">::</span><span class="n">Foo</span><span class="p">()</span><span class="o">:</span> <span class="n">a</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceBeforeInheritanceColon</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">false</span></code>, spaces will be removed before inheritance colon.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="k">class</span> <span class="nc">Foo</span> <span class="o">:</span> <span class="n">Bar</span> <span class="p">{}</span>             <span class="n">vs</span><span class="p">.</span>     <span class="k">class</span> <span class="nc">Foo</span><span class="o">:</span> <span class="n">Bar</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceBeforeParens</strong> (<code class="docutils literal notranslate"><span class="pre">SpaceBeforeParensOptions</span></code>)</dt>
+<dd><p class="first">Defines in which cases to put a space before opening parentheses.</p>
+<p>Possible values:</p>
+<ul class="last">
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBPO_Never</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Never</span></code>)
+Never put a space before opening parentheses.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span><span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">f</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBPO_ControlStatements</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">ControlStatements</span></code>)
+Put a space before opening parentheses only after control statement
+keywords (<code class="docutils literal notranslate"><span class="pre">for/if/while...</span></code>).</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">f</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBPO_NonEmptyParentheses</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">NonEmptyParentheses</span></code>)
+Put a space before opening parentheses only if the parentheses are not
+empty i.e. ‘()’</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">f</span><span class="p">();</span>
+    <span class="n">g</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><code class="docutils literal notranslate"><span class="pre">SBPO_Always</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Always</span></code>)
+Always put a space before opening parentheses, except when it’s
+prohibited by the syntax rules (in function-like macro definitions) or
+when determined by other style rules (after unary operators, opening
+parentheses, etc.)</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">f</span> <span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">f</span> <span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+<dt><strong>SpaceBeforeRangeBasedForLoopColon</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">false</span></code>, spaces will be removed before range-based for loop
+colon.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="nl">v</span> <span class="p">:</span> <span class="n">values</span><span class="p">)</span> <span class="p">{}</span>       <span class="n">vs</span><span class="p">.</span>     <span class="k">for</span><span class="p">(</span><span class="k">auto</span> <span class="nl">v</span><span class="p">:</span> <span class="n">values</span><span class="p">)</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceInEmptyBlock</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces will be inserted into <code class="docutils literal notranslate"><span class="pre">{}</span></code>.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                <span class="nb">false</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span> <span class="p">}</span>                   <span class="n">vs</span><span class="p">.</span>   <span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{}</span>
+<span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span> <span class="p">}</span>                     <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpaceInEmptyParentheses</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces may be inserted into <code class="docutils literal notranslate"><span class="pre">()</span></code>.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                <span class="nb">false</span><span class="o">:</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">(</span> <span class="p">)</span> <span class="p">{</span>                    <span class="n">vs</span><span class="p">.</span>   <span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">x</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="n">foo</span><span class="p">(</span> <span class="p">),</span> <span class="n">bar</span><span class="p">(</span> <span class="p">)};</span>          <span class="kt">int</span> <span class="n">x</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="n">foo</span><span class="p">(),</span> <span class="n">bar</span><span class="p">()};</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>                          <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">f</span><span class="p">(</span> <span class="p">);</span>                                <span class="n">f</span><span class="p">();</span>
+  <span class="p">}</span>                                    <span class="p">}</span>
+<span class="p">}</span>                                    <span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpacesBeforeTrailingComments</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd><p class="first">The number of spaces before trailing line comments
+(<code class="docutils literal notranslate"><span class="pre">//</span></code> - comments).</p>
+<p>This does not affect trailing block comments (<code class="docutils literal notranslate"><span class="pre">/*</span></code> - comments) as
+those commonly have different usage patterns and a number of special
+cases.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nl">SpacesBeforeTrailingComments</span><span class="p">:</span> <span class="mi">3</span>
+<span class="kt">void</span> <span class="n">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>   <span class="c1">// foo1</span>
+    <span class="n">f</span><span class="p">();</span>        <span class="c1">// bar</span>
+  <span class="p">}</span>             <span class="c1">// foo</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpacesInAngles</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces will be inserted after <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> and before <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>
+in template argument lists.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="k">static_cast</span><span class="o">&lt;</span> <span class="kt">int</span> <span class="o">&gt;</span><span class="p">(</span><span class="n">arg</span><span class="p">);</span>       <span class="n">vs</span><span class="p">.</span>     <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">arg</span><span class="p">);</span>
+<span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span> <span class="kt">void</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">fct</span><span class="p">;</span>        <span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="o">&gt;</span> <span class="n">fct</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpacesInCStyleCastParentheses</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces may be inserted into C style casts.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="n">x</span> <span class="o">=</span> <span class="p">(</span> <span class="n">int32</span> <span class="p">)</span><span class="n">y</span>                 <span class="n">vs</span><span class="p">.</span>     <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">int32</span><span class="p">)</span><span class="n">y</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpacesInContainerLiterals</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces are inserted inside container literals (e.g.
+ObjC and Javascript array and dict literals).</p>
+<div class="last highlight-js notranslate"><div class="highlight"><pre><span></span><span class="kc">true</span><span class="o">:</span>                                  <span class="kc">false</span><span class="o">:</span>
+<span class="kd">var</span> <span class="nx">arr</span> <span class="o">=</span> <span class="p">[</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span> <span class="p">];</span>         <span class="nx">vs</span><span class="p">.</span>     <span class="kd">var</span> <span class="nx">arr</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">];</span>
+<span class="nx">f</span><span class="p">({</span><span class="nx">a</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">b</span> <span class="o">:</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">c</span> <span class="o">:</span> <span class="mi">3</span><span class="p">});</span>              <span class="nx">f</span><span class="p">({</span><span class="nx">a</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">b</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">c</span><span class="o">:</span> <span class="mi">3</span><span class="p">});</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpacesInParentheses</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces will be inserted after <code class="docutils literal notranslate"><span class="pre">(</span></code> and before <code class="docutils literal notranslate"><span class="pre">)</span></code>.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="n">t</span> <span class="n">f</span><span class="p">(</span> <span class="n">Deleted</span> <span class="o">&amp;</span> <span class="p">)</span> <span class="o">&amp;</span> <span class="o">=</span> <span class="k">delete</span><span class="p">;</span>   <span class="n">vs</span><span class="p">.</span>     <span class="n">t</span> <span class="n">f</span><span class="p">(</span><span class="n">Deleted</span> <span class="o">&amp;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">=</span> <span class="k">delete</span><span class="p">;</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>SpacesInSquareBrackets</strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>)</dt>
+<dd><p class="first">If <code class="docutils literal notranslate"><span class="pre">true</span></code>, spaces will be inserted after <code class="docutils literal notranslate"><span class="pre">[</span></code> and before <code class="docutils literal notranslate"><span class="pre">]</span></code>.
+Lambdas or unspecified size array declarations will not be affected.</p>
+<div class="last highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="nb">true</span><span class="o">:</span>                                  <span class="nb">false</span><span class="o">:</span>
+<span class="kt">int</span> <span class="n">a</span><span class="p">[</span> <span class="mi">5</span> <span class="p">];</span>                    <span class="n">vs</span><span class="p">.</span>     <span class="kt">int</span> <span class="n">a</span><span class="p">[</span><span class="mi">5</span><span class="p">];</span>
+<span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">[]</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{}</span> <span class="c1">// Won&#39;t be affected</span>
+</pre></div>
+</div>
+</dd>
+<dt><strong>Standard</strong> (<code class="docutils literal notranslate"><span class="pre">LanguageStandard</span></code>)</dt>
+<dd><p class="first">Format compatible with this standard, e.g. use <code class="docutils literal notranslate"><span class="pre">A&lt;A&lt;int&gt;</span> <span class="pre">&gt;</span></code>
+instead of <code class="docutils literal notranslate"><span class="pre">A&lt;A&lt;int&gt;&gt;</span></code> for <code class="docutils literal notranslate"><span class="pre">LS_Cpp03</span></code>.</p>
+<p>Possible values:</p>
+<ul class="last simple">
+<li><code class="docutils literal notranslate"><span class="pre">LS_Cpp03</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Cpp03</span></code>)
+Use C++03-compatible syntax.</li>
+<li><code class="docutils literal notranslate"><span class="pre">LS_Cpp11</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Cpp11</span></code>)
+Use features of C++11, C++14 and C++1z (e.g. <code class="docutils literal notranslate"><span class="pre">A&lt;A&lt;int&gt;&gt;</span></code> instead of
+<code class="docutils literal notranslate"><span class="pre">A&lt;A&lt;int&gt;</span> <span class="pre">&gt;</span></code>).</li>
+<li><code class="docutils literal notranslate"><span class="pre">LS_Auto</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Auto</span></code>)
+Automatic detection based on the input.</li>
+</ul>
+</dd>
+<dt><strong>StatementMacros</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::string&gt;</span></code>)</dt>
+<dd><p class="first">A vector of macros that should be interpreted as complete
+statements.</p>
+<p>Typical macros are expressions, and require a semi-colon to be
+added; sometimes this is not the case, and this allows to make
+clang-format aware of such cases.</p>
+<p class="last">For example: Q_UNUSED</p>
+</dd>
+<dt><strong>TabWidth</strong> (<code class="docutils literal notranslate"><span class="pre">unsigned</span></code>)</dt>
+<dd>The number of columns used for tab stops.</dd>
+<dt><strong>TypenameMacros</strong> (<code class="docutils literal notranslate"><span class="pre">std::vector&lt;std::string&gt;</span></code>)</dt>
+<dd><p class="first">A vector of macros that should be interpreted as type declarations
+instead of as function calls.</p>
+<p>These are expected to be macros of the form:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="n">STACK_OF</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p>In the .clang-format configuration file, this can be configured like:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">TypenameMacros</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;STACK_OF&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;LIST&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p class="last">For example: OpenSSL STACK_OF, BSD LIST_ENTRY.</p>
+</dd>
+<dt><strong>UseTab</strong> (<code class="docutils literal notranslate"><span class="pre">UseTabStyle</span></code>)</dt>
+<dd><p class="first">The way to use tab characters in the resulting file.</p>
+<p>Possible values:</p>
+<ul class="last simple">
+<li><code class="docutils literal notranslate"><span class="pre">UT_Never</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Never</span></code>)
+Never use tab.</li>
+<li><code class="docutils literal notranslate"><span class="pre">UT_ForIndentation</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">ForIndentation</span></code>)
+Use tabs only for indentation.</li>
+<li><code class="docutils literal notranslate"><span class="pre">UT_ForContinuationAndIndentation</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">ForContinuationAndIndentation</span></code>)
+Use tabs only for line continuation and indentation.</li>
+<li><code class="docutils literal notranslate"><span class="pre">UT_Always</span></code> (in configuration: <code class="docutils literal notranslate"><span class="pre">Always</span></code>)
+Use tabs whenever we need to fill whitespace that spans at least from
+one tab stop to the next one.</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="adding-additional-style-options">
+<h2>Adding additional style options<a class="headerlink" href="#adding-additional-style-options" title="Permalink to this headline">¶</a></h2>
+<p>Each additional style option adds costs to the clang-format project. Some of
+these costs affect the clang-format development itself, as we need to make
+sure that any given combination of options work and that new features don’t
+break any of the existing options in any way. There are also costs for end users
+as options become less discoverable and people have to think about and make a
+decision on options they don’t really care about.</p>
+<p>The goal of the clang-format project is more on the side of supporting a
+limited set of styles really well as opposed to supporting every single style
+used by a codebase somewhere in the wild. Of course, we do want to support all
+major projects and thus have established the following bar for adding style
+options. Each new style option must ..</p>
+<blockquote>
+<div><ul class="simple">
+<li>be used in a project of significant size (have dozens of contributors)</li>
+<li>have a publicly accessible style guide</li>
+<li>have a person willing to contribute and maintain patches</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>A style similar to the <a class="reference external" href="https://www.kernel.org/doc/Documentation/CodingStyle">Linux Kernel style</a>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">BasedOnStyle</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">LLVM</span>
+<span class="l l-Scalar l-Scalar-Plain">IndentWidth</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">8</span>
+<span class="l l-Scalar l-Scalar-Plain">UseTab</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Always</span>
+<span class="l l-Scalar l-Scalar-Plain">BreakBeforeBraces</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Linux</span>
+<span class="l l-Scalar l-Scalar-Plain">AllowShortIfStatementsOnASingleLine</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="l l-Scalar l-Scalar-Plain">IndentCaseLabels</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre></div>
+</div>
+<p>The result is (imagine that tabs are used for indentation here):</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">test</span><span class="p">()</span>
+<span class="p">{</span>
+        <span class="k">switch</span> <span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">case</span> <span class="mi">0</span><span class="o">:</span>
+        <span class="k">case</span> <span class="mi">1</span><span class="o">:</span>
+                <span class="n">do_something</span><span class="p">();</span>
+                <span class="k">break</span><span class="p">;</span>
+        <span class="k">case</span> <span class="mi">2</span><span class="o">:</span>
+                <span class="n">do_something_else</span><span class="p">();</span>
+                <span class="k">break</span><span class="p">;</span>
+        <span class="k">default</span><span class="o">:</span>
+                <span class="k">break</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">condition</span><span class="p">)</span>
+                <span class="n">do_something_completely_different</span><span class="p">();</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">q</span><span class="p">();</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="n">y</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">w</span><span class="p">();</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="n">r</span><span class="p">();</span>
+        <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A style similar to the default Visual Studio formatting style:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">UseTab</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Never</span>
+<span class="l l-Scalar l-Scalar-Plain">IndentWidth</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="l l-Scalar l-Scalar-Plain">BreakBeforeBraces</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Allman</span>
+<span class="l l-Scalar l-Scalar-Plain">AllowShortIfStatementsOnASingleLine</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="l l-Scalar l-Scalar-Plain">IndentCaseLabels</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="l l-Scalar l-Scalar-Plain">ColumnLimit</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
+</pre></div>
+</div>
+<p>The result is:</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">test</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">switch</span> <span class="p">(</span><span class="n">suffix</span><span class="p">)</span>
+    <span class="p">{</span>
+    <span class="k">case</span> <span class="mi">0</span><span class="o">:</span>
+    <span class="k">case</span> <span class="mi">1</span><span class="o">:</span>
+        <span class="n">do_something</span><span class="p">();</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="mi">2</span><span class="o">:</span>
+        <span class="n">do_something_else</span><span class="p">();</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="k">default</span><span class="o">:</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">condition</span><span class="p">)</span>
+        <span class="n">do_somthing_completely_different</span><span class="p">();</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">y</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">q</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="n">y</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">w</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">else</span>
+    <span class="p">{</span>
+        <span class="n">r</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav" role="navigation" aria-label="bottom navigation">
+      
+        <p>
+        «&#160;&#160;<a href="ClangFormat.html">ClangFormat</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="InternalsManual.html">“Clang” CFE Internals Manual</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2007-2019, The Clang Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+  </body>
+</html>

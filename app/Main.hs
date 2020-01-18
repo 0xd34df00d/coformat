@@ -57,7 +57,7 @@ main = do
          withTaskGroup tgSize $ \taskGroup ->
          (`runLoggingT` logOutput maybeLogHandle) $ runExceptT $ runOptPipeline PipelineOpts
                                                                                 { forceStrs = forceOption
-                                                                                , formatter = clangFormatter
+                                                                                , formatter = clangFormatter ClangFormat9
                                                                                 , ..
                                                                                 }
   case res of
