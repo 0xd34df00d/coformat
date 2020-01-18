@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, TypeApplications, DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Clang.Format.Formatter(clangFormatter) where
 
@@ -23,7 +24,7 @@ clangFormatter = Formatter { .. }
     formatterInfo = FormatterInfo { .. }
       where
         execName = "clang-format"
-        formatterOpts = OptsFromFile "data/ClangFormatStyleOptions-9.html" parseOptsDescription
+        formatterOpts = StaticOpts $(staticOptions "data/ClangFormatStyleOptions-9.html")
         hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
                         , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
                         , ConfigItem { name = ["DisableFormat"], value = CTBool False }

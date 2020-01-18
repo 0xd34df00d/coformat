@@ -1,9 +1,10 @@
-{-# LANGUAGE QuasiQuotes, ParallelListComp, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, ParallelListComp, RecordWildCards, OverloadedStrings #-}
 {-# LANGUAGE DataKinds, GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Clang.Format.DescrParser
 ( parseOptsDescription
+, staticOptions
 ) where
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
@@ -15,6 +16,7 @@ import Data.List
 import Data.String.Interpolate
 import Control.Monad.Except
 import Control.Monad.Extra
+import Language.Haskell.TH.Syntax
 import Text.HTML.DOM
 import Text.XML hiding(parseLBS)
 import Text.XML.Cursor
@@ -24,6 +26,14 @@ import Text.XML.Selector.Types
 
 import Language.Coformat.Descr
 import Language.Coformat.Descr.Operations
+
+staticOptions :: FilePath -> Q Exp
+staticOptions path = do
+  addDependentFile path
+  contents <- runIO $ LBS.readFile path
+  case parseOptsDescription contents of
+       Right opts -> [| opts |]
+       Left err -> error err
 
 parseOptsDescription :: LBS.ByteString -> Either String (OptsDescription 'Supported)
 parseOptsDescription contents = do
