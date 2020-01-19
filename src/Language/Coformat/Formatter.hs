@@ -13,6 +13,7 @@ import System.Exit
 
 import Language.Coformat.Descr
 import Language.Coformat.Formatter.Failure
+import Language.Coformat.Language
 import Language.Coformat.Util
 
 data OptsSource opts
@@ -28,7 +29,7 @@ parseOpts exec  (OptsFromCmd args parser) = convert (show @Failure) (runCommand 
 data FormatterInfo = FormatterInfo
   { formatterName :: String
   , execName :: String
-  , extensions :: [String]
+  , languages :: [Language]
 
   , versionCheck :: (CmdArgs, BS.ByteString -> Bool)
 

@@ -21,6 +21,7 @@ import Clang.Format.StyOpts
 import Clang.Format.YamlConversions
 import Language.Coformat.Descr
 import Language.Coformat.Formatter
+import Language.Coformat.Language
 import Language.Coformat.Util
 
 data ClangFormatVersion = ClangFormat9 | ClangFormat10
@@ -38,7 +39,7 @@ clangFormatter version = Formatter { .. }
       where
         formatterName = "clang-format-" <> show thisVersionNum
         execName = "clang-format"
-        extensions = ["cpp", "c", "h", "hpp", "hxx", "cxx"]
+        languages = [C, Cpp]
         versionCheck = (CmdArgs { args = ["--version"] }, versionCheckImpl . BS.unpack)
         formatterOpts = StaticOpts $ getOpts version
         hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
