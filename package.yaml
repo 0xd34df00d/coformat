@@ -28,6 +28,7 @@ dependencies:
 - dom-selector
 - extra
 - fast-logger
+- filepath
 - generic-data
 - hashable
 - html-conduit
