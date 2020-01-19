@@ -26,7 +26,8 @@ parseOpts _     (OptsFromFile path parser) = parser <$> liftIO (LBS.readFile pat
 parseOpts exec  (OptsFromCmd args parser) = convert (show @Failure) (runCommand exec args) >>= liftEither . parser
 
 data FormatterInfo = FormatterInfo
-  { execName :: String
+  { formatterName :: String
+  , execName :: String
 
   , versionCheck :: (CmdArgs, BS.ByteString -> Bool)
 

@@ -36,8 +36,9 @@ clangFormatter version = Formatter { .. }
   where
     formatterInfo = FormatterInfo { .. }
       where
+        formatterName = "clang-format-" <> show thisVersionNum
         execName = "clang-format"
-        versionCheck = (CmdArgs { args = ["--version"] }, versionCheckImpl version . BS.unpack)
+        versionCheck = (CmdArgs { args = ["--version"] }, versionCheckImpl . BS.unpack)
         formatterOpts = StaticOpts $ getOpts version
         hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }
                         , ConfigItem { name = ["BreakBeforeBraces"], value = CTEnum ["Custom"] "Custom" }
@@ -63,9 +64,7 @@ clangFormatter version = Formatter { .. }
       opts <- convert (show @FillError) $ collectConfigItems knownOpts resumeObj
       pure (baseStyle, opts)
 
-versionCheckImpl :: ClangFormatVersion -> String -> Bool
-versionCheckImpl cv str
-  | Just num <- str =~ "clang-format version " *> decimal <* "." <* many anySym = num == thisVersion
-  | otherwise = False
-  where
-    thisVersion = read $ drop (length ("ClangFormat" :: String)) $ show cv :: Int
+    versionCheckImpl str
+      | Just num <- str =~ "clang-format version " *> decimal <* "." <* many anySym = num == thisVersionNum
+      | otherwise = False
+    thisVersionNum = read $ drop (length ("ClangFormat" :: String)) $ show version :: Int

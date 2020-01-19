@@ -60,6 +60,10 @@ getAvailableFormatters = filterM (flt . formatterInfo) [clangFormatter ClangForm
 
 main :: IO ()
 main = do
+  availableFormatters <- getAvailableFormatters
+  putStrLn "Available formatters:"
+  forM_ availableFormatters $ \fmt -> putStrLn $ " * " <> formatterName (formatterInfo fmt)
+
   Options { .. } <- unwrapRecord "coformat"
 
   tgSize <- case parallelism of
