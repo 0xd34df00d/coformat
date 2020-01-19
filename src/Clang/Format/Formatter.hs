@@ -38,6 +38,7 @@ clangFormatter version = Formatter { .. }
       where
         formatterName = "clang-format-" <> show thisVersionNum
         execName = "clang-format"
+        extensions = ["cpp", "c", "h", "hpp", "hxx", "cxx"]
         versionCheck = (CmdArgs { args = ["--version"] }, versionCheckImpl . BS.unpack)
         formatterOpts = StaticOpts $ getOpts version
         hardcodedOpts = [ ConfigItem { name = ["Language"], value = CTEnum ["Cpp"] "Cpp" }

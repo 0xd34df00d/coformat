@@ -28,6 +28,7 @@ parseOpts exec  (OptsFromCmd args parser) = convert (show @Failure) (runCommand 
 data FormatterInfo = FormatterInfo
   { formatterName :: String
   , execName :: String
+  , extensions :: [String]
 
   , versionCheck :: (CmdArgs, BS.ByteString -> Bool)
 
