@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, TypeOperators #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, TypeOperators, TypeApplications #-}
 {-# LANGUAGE DataKinds, RankNTypes, GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
@@ -10,15 +10,21 @@ import qualified Data.List.NonEmpty as N
 import Control.Concurrent.Async.Pool
 import Control.Monad.Except
 import Control.Monad.Logger
+import Control.Monad.Trans.Maybe
+import Data.Maybe
 import GHC.Conc
 import GHC.Generics
 import Numeric.Natural
 import Options.Generic
+import System.Directory.Extra
 import System.IO(IOMode(..), Handle, stderr, withFile)
 import System.Log.FastLogger
 
 import Clang.Format.Formatter
+import Language.Coformat.Formatter
+import Language.Coformat.Formatter.Failure
 import Language.Coformat.Pipeline
+import Language.Coformat.Util
 
 data Options w = Options
   { parallelism :: w ::: Maybe Natural <?> "Max parallel threads of heavy-duty computations (defaults to NCPUs - 1)"
@@ -41,6 +47,16 @@ logOutput debugHandle loc src level msg
   | otherwise = BS.hPutStr stderr str
   where
     str = fromLogStr $ defaultLogStr loc src level msg
+
+getAvailableFormatters :: IO [Formatter]
+getAvailableFormatters = filterM (flt . formatterInfo) [clangFormatter ClangFormat10, clangFormatter ClangFormat9]
+  where
+    flt FormatterInfo { .. } = fmap (fromMaybe False) $ runMaybeT $ do
+      void $ lift $ findExecutable execName
+      output <- exceptToMaybeT $ convert (show @Failure) $ runCommand execName verCmd
+      pure $ verChecker output
+      where
+        (verCmd, verChecker) = versionCheck
 
 main :: IO ()
 main = do

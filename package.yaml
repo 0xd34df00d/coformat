@@ -42,6 +42,7 @@ dependencies:
 - template-haskell
 - temporary
 - text
+- transformers
 - unordered-containers
 - xml-conduit
 - yaml
