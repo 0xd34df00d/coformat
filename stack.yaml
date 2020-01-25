@@ -2,9 +2,8 @@ resolver: lts-14.16
 packages:
 - .
 extra-deps:
+- async-pool-0.9.1
 - can-i-haz-0.3.1.0
 - command-0.1.1
 - command-qq-0.3.1.0
 - dom-selector-0.2.0.1
-- github: jwiegley/async-pool
-  commit: 48faeb491a87ac3b6e6640bdb3b83cf5ec215072
