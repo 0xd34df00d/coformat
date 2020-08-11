@@ -2,7 +2,6 @@
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE Strict #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.Coformat.Descr where
 
