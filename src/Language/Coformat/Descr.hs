@@ -26,12 +26,6 @@ data ConfigTypeT f
   | CTEnum { variants :: [T.Text], enumValue :: CTData f T.Text }
   | CTUnsupported (CTData f Void)
 
-instance Lift Void where
-  lift = absurd
-
-instance Lift T.Text where
-  lift = lift . T.unpack
-
 deriving instance Show (ConfigTypeT 'Parsed)
 deriving instance Show (ConfigTypeT 'Supported)
 deriving instance Show (ConfigTypeT 'Value)
