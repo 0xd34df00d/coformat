@@ -19,11 +19,11 @@ dependencies:
 - base >= 4.7 && < 5
 - aeson
 - async
-- async-pool
+- async-pool >= 0.9.1
 - bytestring
 - can-i-haz
 - command
-- command-qq
+- command-qq >= 0.3.1.0
 - containers
 - dom-selector
 - extra
